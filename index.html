@@ -240,17 +240,17 @@
                         </button>
                     </div>
 
-                    <!-- Card de Projeto 9 -->
+                    <!-- Card de Projeto 9 (MODIFICADO) -->
                     <div class="bg-gray-900/50 border border-gray-800 p-6 rounded-xl card-hover flex flex-col">
                         <div class="mb-3">
-                            <span class="text-xs font-semibold px-3 py-1 bg-red-600/20 text-red-300 rounded-full">Geração com IA</span>
+                            <span class="text-xs font-semibold px-3 py-1 bg-blue-600/20 text-blue-300 rounded-full">Escrita Criativa (IA)</span>
                         </div>
-                        <h3 class="text-2xl font-bold mb-3">Gerador de Imagens (IA)</h3>
+                        <h3 class="text-2xl font-bold mb-3">Gerador de Histórias (IA)</h3>
                         <p class="text-gray-400 mb-4 flex-grow">
-                            Descreva uma cena e a IA (Imagen) irá gerá-la para você.
+                            Dê um tema ou um personagem e a IA escreverá uma pequena história para você.
                         </p>
-                        <button onclick="openProjectModal('imageGenerator')" class="mt-auto w-full text-center font-semibold text-brand-accent hover:underline">
-                            Gerar Imagem &rarr;
+                        <button onclick="openProjectModal('storyGenerator')" class="mt-auto w-full text-center font-semibold text-brand-accent hover:underline">
+                            Começar a Escrever &rarr;
                         </button>
                     </div>
                     
@@ -387,8 +387,8 @@
                 case 'todoList':
                     initTodoList();
                     break;
-                case 'imageGenerator':
-                    initImageGenerator();
+                case 'storyGenerator': // MODIFICADO (era 'aiTranslator')
+                    initStoryGenerator();
                     break;
                 case 'pongGame':
                     initPongGame();
@@ -457,7 +457,19 @@
             resultDiv.classList.add('hidden');
             button.disabled = true;
 
-            const apiKey = LOCAL_API_KEY; // Deixe em branco, será preenchido pelo ambiente
+            const apiKey = LOCAL_API_KEY; 
+            
+            // --- NOVA VERIFICAÇÃO ---
+            if (!apiKey) {
+                resultDiv.textContent = 'Erro: API Key não configurada. Adicione sua chave à variável LOCAL_API_KEY no código.';
+                resultDiv.className = 'mt-4 p-4 rounded-lg text-lg font-semibold bg-red-600/20 text-red-300';
+                resultDiv.classList.remove('hidden');
+                loadingDiv.classList.add('hidden');
+                button.disabled = false;
+                return;
+            }
+            // --- FIM DA VERIFICAÇÃO ---
+            
             const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent?key=${apiKey}`;
             
             // Instrução para a IA responder APENAS com uma palavra
@@ -548,7 +560,19 @@
             chartContainer.innerHTML = ''; // Limpa o gráfico anterior
             button.disabled = true;
 
-            const apiKey = LOCAL_API_KEY; // Deixe em branco
+            const apiKey = LOCAL_API_KEY; 
+            
+            // --- NOVA VERIFICAÇÃO ---
+            if (!apiKey) {
+                errorDiv.textContent = 'Erro: API Key não configurada. Adicione sua chave à variável LOCAL_API_KEY no código.';
+                errorDiv.className = 'mt-4 p-4 rounded-lg text-lg font-semibold bg-red-600/20 text-red-300';
+                errorDiv.classList.remove('hidden');
+                loadingDiv.classList.add('hidden');
+                button.disabled = false;
+                return;
+            }
+            // --- FIM DA VERIFICAÇÃO ---
+
             const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent?key=${apiKey}`;
 
             // 1. O Schema JSON que a IA DEVE retornar
@@ -659,476 +683,43 @@ Sua tarefa é:
             }
         }
         
-        // Função para desenhar Gráfico de Barras (Vertical ou Horizontal)
-        function drawBarChart(data, isHorizontal = false) {
-            const container = d3.select("#chart-container");
-            const svg = d3.select("#ai-chart-svg");
-
-            const width = Math.min(600, container.node().getBoundingClientRect().width);
-            const height = 450;
-            const margin = { top: 20, right: 30, bottom: 60, left: 100 };
-
-            const innerWidth = width - margin.left - margin.right;
-            const innerHeight = height - margin.top - margin.bottom;
-
-            svg.attr("width", width)
-               .attr("height", height)
-               .style("background-color", "#1a1a1a")
-               .style("border-radius", "8px");
-
-            const g = svg.append("g").attr("transform", `translate(${margin.left},${margin.top})`);
-            
-            const color = d3.scaleOrdinal(d3.schemeCategory10);
-
-            if (isHorizontal) {
-                // --- Gráfico de Barras Horizontal ---
-                const x = d3.scaleLinear()
-                    .domain([0, d3.max(data, d => d.value)])
-                    .range([0, innerWidth]);
-
-                const y = d3.scaleBand()
-                    .domain(data.map(d => d.label))
-                    .range([0, innerHeight])
-                    .padding(0.1);
-
-                // Eixo X (Valores)
-                g.append("g")
-                    .attr("transform", `translate(0,${innerHeight})`)
-                    .call(d3.axisBottom(x))
-                    .selectAll("text")
-                    .style("fill", "#ccc");
-
-                // Eixo Y (Labels)
-                g.append("g")
-                    .call(d3.axisLeft(y))
-                    .selectAll("text")
-                    .style("fill", "#fff");
-
-                // Barras
-                g.selectAll(".bar")
-                    .data(data)
-                    .enter().append("rect")
-                    .attr("class", "bar")
-                    .attr("y", d => y(d.label))
-                    .attr("height", y.bandwidth())
-                    .attr("x", 0)
-                    .attr("width", 0) // Começa com 0 para transição
-                    .style("fill", d => color(d.label))
-                    .transition()
-                    .duration(800)
-                    .attr("width", d => x(d.value));
-
-            } else {
-                // --- Gráfico de Barras Vertical ---
-                const x = d3.scaleBand()
-                    .domain(data.map(d => d.label))
-                    .range([0, innerWidth])
-                    .padding(0.1);
-
-                const y = d3.scaleLinear()
-                    .domain([0, d3.max(data, d => d.value)])
-                    .range([innerHeight, 0]);
-
-                // Eixo X (Labels)
-                g.append("g")
-                    .attr("transform", `translate(0,${innerHeight})`)
-                    .call(d3.axisBottom(x))
-                    .selectAll("text")
-                    .style("fill", "#fff")
-                    .attr("transform", "rotate(-45)")
-                    .style("text-anchor", "end");
-
-                // Eixo Y (Valores)
-                g.append("g")
-                    .call(d3.axisLeft(y))
-                    .selectAll("text")
-                    .style("fill", "#ccc");
-
-                // Barras
-                g.selectAll(".bar")
-                    .data(data)
-                    .enter().append("rect")
-                    .attr("class", "bar")
-                    .attr("x", d => x(d.label))
-                    .attr("width", x.bandwidth())
-                    .attr("y", innerHeight) // Começa de baixo para transição
-                    .attr("height", 0)
-                    .style("fill", d => color(d.label))
-                    .transition()
-                    .duration(800)
-                    .attr("y", d => y(d.value))
-                    .attr("height", d => innerHeight - y(d.value));
-            }
-            
-            // Remove traços dos eixos
-            g.selectAll(".domain").remove();
-            g.selectAll("line").style("stroke", "#444");
-        }
+        // --- 10. PROJETO 9: TRADUTOR COM IA (IA) ---
+        // ESTA SEÇÃO FOI REMOVIDA E SUBSTITUÍDA ABAIXO
         
-        // Função para desenhar Gráfico de Bolhas (Adaptada para dados da IA)
-        function drawBubbleChart_AI(data) {
-            const container = d3.select("#chart-container");
-            const svg = d3.select("#ai-chart-svg");
-            
-            const width = Math.min(600, container.node().getBoundingClientRect().width);
-            const height = 450;
-
-            // Transforma dados planos em hierarquia
-            const bubbleData = { name: "root", children: data };
-            
-            const root = d3.hierarchy(bubbleData)
-                .sum(d => d.value)
-                .sort((a, b) => b.value - a.value);
-
-            const pack = d3.pack()
-                .size([width, height])
-                .padding(5);
-
-            const nodes = pack(root).descendants().filter(d => d.depth === 1); // Apenas as bolhas
-
-            svg.attr("width", width)
-               .attr("height", height)
-               .attr("viewBox", `0 0 ${width} ${height}`)
-               .style("display", "block")
-               .style("margin", "0 auto")
-               .style("background-color", "#1a1a1a")
-               .style("border-radius", "8px");
-
-            const color = d3.scaleOrdinal(d3.schemeCategory10);
-
-            const node = svg.selectAll("g")
-                .data(nodes)
-                .enter().append("g")
-                .attr("transform", d => `translate(${d.x},${d.y})`)
-                .style("cursor", "pointer")
-                .on("mouseover", function(e, d) {
-                    d3.select(this).select("circle").attr("stroke", "#fff").attr("stroke-width", 2);
-                })
-                .on("mouseout", function(e, d) {
-                    d3.select(this).select("circle").attr("stroke", "none");
-                });
-
-            node.append("circle")
-                .attr("r", 0) // Começa com 0 para transição
-                .style("fill", d => color(d.data.label))
-                .attr("opacity", 0.85)
-                .transition()
-                .duration(800)
-                .attr("r", d => d.r);
-
-            node.append("text")
-                .attr("dy", ".3em")
-                .style("text-anchor", "middle")
-                .style("fill", "#fff")
-                .style("font-size", d => Math.max(10, d.r / 5) + "px")
-                .text(d => d.data.label)
-                .style("pointer-events", "none")
-                .style("opacity", 0) // Começa transparente
-                .transition()
-                .duration(800)
-                .delay(200) // Aparece depois da bolha
-                .style("opacity", 1);
-        }
-
-
-        // --- 4. PROJETO 3: SPACE INVADERS (HTML5 Canvas) ---
+        // --- 10. PROJETO 9: GERADOR DE HISTÓRIAS (NOVO) ---
         
-        let spaceInvadersGame = {}; // Objeto para guardar o estado do jogo
-
-        function initSpaceInvaders() {
-            modalContent.innerHTML = `
-                <h2 class="text-2xl font-bold mb-4 gradient-text">Space Invaders</h2>
-                <div class="flex justify-between items-center mb-2 text-lg">
-                    <p class="text-gray-300">Pontos: <span id="score" class="font-bold text-white">0</span></p>
-                    <p class="text-gray-300">Vidas: <span id="lives" class="font-bold text-white">3</span></p>
-                </div>
-                <canvas id="game-canvas" width="600" height="400"></canvas>
-                <p class="text-gray-500 text-sm text-center mt-2">Use as setas (← →) para mover e a barra de espaço para atirar.</p>
-                <div id="game-over" class="hidden text-center mt-4">
-                    <h3 class="text-3xl font-bold text-red-500">FIM DE JOGO!</h3>
-                    <button onclick="initSpaceInvaders()" class="mt-4 bg-brand-accent text-white font-semibold px-6 py-2 rounded-lg hover:bg-blue-600 transition-colors">
-                        Jogar Novamente
-                    </button>
-                </div>
-            `;
-            
-            const canvas = document.getElementById('game-canvas');
-            const ctx = canvas.getContext('2d');
-            
-            const scoreEl = document.getElementById('score');
-            const livesEl = document.getElementById('lives');
-            const gameOverEl = document.getElementById('game-over');
-
-            // Estado do Jogo
-            spaceInvadersGame = {
-                canvas, ctx, scoreEl, livesEl, gameOverEl,
-                width: canvas.width,
-                height: canvas.height,
-                score: 0,
-                lives: 3,
-                keys: {},
-                player: { x: canvas.width / 2 - 15, y: canvas.height - 30, width: 30, height: 10, speed: 5, invincible: false, invincibleTimer: 0 },
-                bullets: [],
-                aliens: [],
-                alienBullets: [],
-                alienDirection: 1,
-                alienSpeed: 0.5,
-                alienMoveDown: false,
-                alienFireRate: 0.005, // Taxa de tiro reduzida (era 0.01)
-                
-                // Função para lidar com input
-                handleKey: (e, isDown) => {
-                    spaceInvadersGame.keys[e.code] = isDown;
-                },
-                
-                // Criar aliens
-                createAliens: () => {
-                    spaceInvadersGame.aliens = [];
-                    const rows = 4;
-                    const cols = 8;
-                    const alienWidth = 30;
-                    const alienHeight = 20;
-                    const alienPadding = 15;
-                    for (let r = 0; r < rows; r++) {
-                        for (let c = 0; c < cols; c++) {
-                            spaceInvadersGame.aliens.push({
-                                x: c * (alienWidth + alienPadding) + 50,
-                                y: r * (alienHeight + alienPadding) + 30,
-                                width: alienWidth,
-                                height: alienHeight
-                            });
-                        }
-                    }
-                },
-                
-                // Desenhar
-                draw: () => {
-                    const { ctx, width, height, player, bullets, aliens, alienBullets } = spaceInvadersGame;
-                    ctx.clearRect(0, 0, width, height);
-                    
-                    // Jogador (Nave)
-                    // Pisca se estiver invencível
-                    if (player.invincible && Math.floor(player.invincibleTimer / 4) % 2 === 0) {
-                        // Não desenha (efeito de piscar)
-                    } else {
-                        ctx.fillStyle = '#3B82F6'; // Azul
-                        ctx.fillRect(player.x, player.y, player.width, player.height);
-                    }
-                    
-                    // Tiros do Jogador
-                    ctx.fillStyle = '#8B5CF6'; // Roxo
-                    bullets.forEach(b => {
-                        ctx.fillRect(b.x, b.y, b.width, b.height);
-                    });
-                    
-                    // Aliens
-                    ctx.fillStyle = '#10B981'; // Verde
-                    aliens.forEach(a => {
-                        ctx.fillRect(a.x, a.y, a.width, a.height);
-                    });
-
-                    // Tiros dos Aliens
-                    ctx.fillStyle = '#F59E0B'; // Amarelo
-                    alienBullets.forEach(b => {
-                        ctx.fillRect(b.x, b.y, b.width, b.height);
-                    });
-                },
-                
-                // Atualizar Posições e Lógica
-                update: () => {
-                    const { keys, player, bullets, aliens, alienBullets, width, height, alienDirection } = spaceInvadersGame;
-
-                    // Mover jogador
-                    if (keys['ArrowLeft'] && player.x > 0) player.x -= player.speed;
-                    if (keys['ArrowRight'] && player.x < width - player.width) player.x += player.speed;
-                    
-                    // Atualizar invencibilidade do jogador
-                    if (player.invincible) {
-                        player.invincibleTimer--;
-                        if (player.invincibleTimer <= 0) {
-                            player.invincible = false;
-                        }
-                    }
-
-                    // Atirar (jogador)
-                    if (keys['Space'] && !keys['SpaceHandled']) {
-                        bullets.push({ x: player.x + player.width / 2 - 2, y: player.y, width: 4, height: 10, speed: 7 });
-                        keys['SpaceHandled'] = true; // Evita tiros múltiplos
-                    }
-                    if (!keys['Space']) keys['SpaceHandled'] = false;
-                    
-                    // Mover tiros (jogador)
-                    bullets.forEach((b, i) => {
-                        b.y -= b.speed;
-                        if (b.y < 0) bullets.splice(i, 1); // Remove se saiu da tela
-                    });
-
-                    // Mover tiros (aliens)
-                    alienBullets.forEach((b, i) => {
-                        b.y += b.speed;
-                        if (b.y > height) alienBullets.splice(i, 1); // Remove se saiu da tela
-                    });
-                    
-                    // Mover aliens
-                    spaceInvadersGame.alienMoveDown = false;
-                    aliens.forEach(a => {
-                        a.x += spaceInvadersGame.alienSpeed * alienDirection;
-                        if (a.x <= 0 || a.x >= width - a.width) {
-                            spaceInvadersGame.alienMoveDown = true;
-                        }
-                    });
-
-                    if (spaceInvadersGame.alienMoveDown) {
-                        spaceInvadersGame.alienDirection *= -1;
-                        aliens.forEach(a => a.y += 10);
-                    }
-
-                    // Aliens atirar
-                    aliens.forEach(a => {
-                        // Cada alien tem uma pequena chance de atirar,
-                        // mas apenas se houver menos de 5 tiros de aliens na tela.
-                        if (Math.random() < spaceInvadersGame.alienFireRate && spaceInvadersGame.alienBullets.length < 5) { 
-                            alienBullets.push({ x: a.x + a.width / 2 - 2, y: a.y + a.height, width: 4, height: 8, speed: 4 });
-                        }
-                    });
-
-                    // Colisões
-                    spaceInvadersGame.checkCollisions();
-
-                    // Atualizar UI
-                    scoreEl.textContent = spaceInvadersGame.score;
-                    livesEl.textContent = spaceInvadersGame.lives;
-
-                    // Checar fim de jogo
-                    if (spaceInvadersGame.lives <= 0) {
-                        spaceInvadersGame.endGame(false);
-                        return;
-                    }
-                    if (aliens.length === 0) {
-                        spaceInvadersGame.endGame(true); // Venceu (reinicia)
-                        return;
-                    }
-                },
-
-                checkCollisions: () => {
-                    const { bullets, aliens, alienBullets, player, height } = spaceInvadersGame;
-
-                    // Tiro (jogador) acerta alien
-                    bullets.forEach((b, bi) => {
-                        aliens.forEach((a, ai) => {
-                            if (b.x < a.x + a.width && b.x + b.width > a.x &&
-                                b.y < a.y + a.height && b.y + b.height > a.y) {
-                                bullets.splice(bi, 1);
-                                aliens.splice(ai, 1);
-                                spaceInvadersGame.score += 10;
-                            }
-                        });
-                    });
-
-                    // Tiro (alien) acerta jogador
-                    alienBullets.forEach((b, bi) => {
-                        if (spaceInvadersGame.lives <= 0) return; // Para de verificar se já perdeu
-                        if (b.x < player.x + player.width && b.x + b.width > player.x &&
-                            b.y < player.y + player.height && b.y + b.height > player.y) {
-                            
-                            alienBullets.splice(bi, 1);
-                            
-                            // Só perde vida se NÃO estiver invencível
-                            if (!player.invincible) {
-                                spaceInvadersGame.lives--;
-                                player.invincible = true;
-                                player.invincibleTimer = 60; // 60 frames de invencibilidade (aprox 1s)
-                            }
-                        }
-                    });
-
-                    // Alien acerta jogador ou chega na base
-                    aliens.forEach((a) => {
-                        if (spaceInvadersGame.lives <= 0) return;
-
-                        // Colisão alien-jogador
-                        if (a.x < player.x + player.width && a.x + a.width > player.x &&
-                            a.y < player.y + player.height && a.y + a.height > player.y) {
-                            if (!player.invincible) {
-                                spaceInvadersGame.lives = 0; // Morte instantânea se o alien tocar
-                            }
-                        }
-                        // Alien chegou na base
-                        if (a.y + a.height > height) {
-                            spaceInvadersGame.lives = 0; // Fim de jogo
-                        }
-                    });
-                },
-
-                endGame: (didWin) => {
-                    if (gameLoopId) cancelAnimationFrame(gameLoopId);
-                    gameLoopId = null;
-                    
-                    if (didWin) {
-                        // Venceu, cria nova onda
-                        spaceInvadersGame.score += 100;
-                        // Aumenta a velocidade, mas com um LIMITE MÁXIMO
-                        spaceInvadersGame.alienSpeed = Math.min(spaceInvadersGame.alienSpeed + 0.2, 2.5);
-                        // Aumenta a taxa de tiro, mas com um LIMITE MÁXIMO
-                        spaceInvadersGame.alienFireRate = Math.min(spaceInvadersGame.alienFireRate + 0.002, 0.02);
-                        
-                        spaceInvadersGame.createAliens();
-                        gameLoopId = requestAnimationFrame(spaceInvadersGame.loop); // Reinicia o loop
-                    } else {
-                        // Perdeu
-                        gameOverEl.classList.remove('hidden');
-                    }
-                },
-                
-                // Loop Principal
-                loop: () => {
-                    spaceInvadersGame.update();
-                    spaceInvadersGame.draw();
-                    gameLoopId = requestAnimationFrame(spaceInvadersGame.loop);
-                }
-            };
-            
-            // Iniciar o jogo
-            spaceInvadersGame.createAliens();
-            
-            // Adicionar listeners de input
-            document.addEventListener('keydown', gameKeydownHandler);
-            document.addEventListener('keyup', gameKeyupHandler);
-            
-            // Iniciar o loop
-            spaceInvadersGame.loop();
-        }
-        
-        // --- 5. PROJETO 4: GERADOR de PALETA (IA) ---
-        
-        function initPaletteGenerator() {
+        function initStoryGenerator() {
              modalContent.innerHTML = `
-                <h2 class="text-2xl font-bold mb-4 gradient-text">Gerador de Paleta (IA)</h2>
-                <p class="text-gray-400 mb-4">Descreva um tema (ex: "oceano profundo", "floresta de outono") e a IA gerará 5 cores.</p>
-                <input type="text" id="palette-prompt" class="w-full p-3 rounded-lg bg-gray-800 text-white border border-gray-700 focus:border-brand-accent focus:ring-0" placeholder="Ex: 'pôr do sol na praia'">
-                <button onclick="generatePalette()" id="palette-button" class="mt-4 bg-brand-accent text-white font-semibold px-6 py-2 rounded-lg hover:bg-blue-600 transition-colors">
-                    Gerar Paleta
+                <h2 class="text-2xl font-bold mb-4 gradient-text">Gerador de Histórias (IA)</h2>
+                <p class="text-gray-400 mb-4">Dê um prompt para a IA (ex: "um cavaleiro que tem medo de cavalos").</p>
+                
+                <textarea id="story-prompt" class="w-full h-24 p-3 rounded-lg bg-gray-800 text-white border border-gray-700 focus:border-brand-accent focus:ring-0" placeholder="Digite seu prompt criativo aqui..."></textarea>
+
+                <button onclick="generateStory()" id="story-button" class="mt-4 bg-brand-accent text-white font-semibold px-6 py-2 rounded-lg hover:bg-blue-600 transition-colors">
+                    Gerar História
                 </button>
-                <div id="palette-loading" class="hidden mt-4 text-center text-gray-400">
+                
+                <div id="story-loading" class="hidden mt-4 text-center text-gray-400">
                     <div class="inline-block animate-spin rounded-full h-6 w-6 border-b-2 border-brand-accent"></div>
-                    <p class="mt-2">Gerando cores...</p>
+                    <p class="mt-2">Escrevendo...</p>
                 </div>
-                <div id="palette-error" class="mt-4 p-4 rounded-lg text-lg font-semibold hidden"></div>
-                <div id="palette-container" class="mt-6 flex justify-center gap-2 h-32">
-                    <!-- As cores aparecerão aqui -->
+                <div id="story-error" class="mt-4 p-4 rounded-lg text-lg font-semibold hidden"></div>
+                
+                <div id="story-output" class="w-full mt-6 p-4 rounded-lg bg-gray-950 border border-gray-700 min-h-[200px] text-gray-300 whitespace-pre-line hidden">
+                    <!-- A história gerada aparecerá aqui -->
                 </div>
             `;
         }
         
-        async function generatePalette() {
-            const prompt = document.getElementById('palette-prompt').value;
-            const errorDiv = document.getElementById('palette-error');
-            const loadingDiv = document.getElementById('palette-loading');
-            const button = document.getElementById('palette-button');
-            const paletteContainer = document.getElementById('palette-container');
+        async function generateStory() {
+            const prompt = document.getElementById('story-prompt').value;
+            const errorDiv = document.getElementById('story-error');
+            const loadingDiv = document.getElementById('story-loading');
+            const button = document.getElementById('story-button');
+            const outputArea = document.getElementById('story-output');
 
             if (!prompt) {
-                errorDiv.textContent = 'Por favor, digite um tema.';
+                errorDiv.textContent = 'Por favor, digite um prompt para a história.';
                 errorDiv.className = 'mt-4 p-4 rounded-lg text-lg font-semibold bg-red-600/20 text-red-300';
                 errorDiv.classList.remove('hidden');
                 return;
@@ -1136,455 +727,32 @@ Sua tarefa é:
 
             loadingDiv.classList.remove('hidden');
             errorDiv.classList.add('hidden');
-            paletteContainer.innerHTML = '';
+            outputArea.classList.add('hidden');
+            outputArea.innerHTML = '';
             button.disabled = true;
 
-            const apiKey = LOCAL_API_KEY;
-            const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent?key=${apiKey}`;
-
-            const responseSchema = {
-                "type": "OBJECT",
-                "properties": {
-                    "colors": {
-                        "type": "ARRAY",
-                        "items": { "type": "STRING", "description": "Um código de cor hexadecimal (ex: '#FFFFFF')" }
-                    }
-                },
-                "required": ["colors"]
-            };
-
-            const systemPrompt = `Você é um assistente de design. O usuário fornecerá um tema.
-Gere uma paleta de 5 cores harmoniosas em formato hexadecimal (ex: '#RRGGBB').
-Formate a saída estritamente de acordo com o JSON schema.`;
-
-            const payload = {
-                contents: [{ parts: [{ text: `Tema: ${prompt}` }] }],
-                systemInstruction: { parts: [{ text: systemPrompt }] },
-                generationConfig: {
-                    responseMimeType: "application/json",
-                    responseSchema: responseSchema
-                }
-            };
-
-            try {
-                const response = await fetch(apiUrl, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify(payload)
-                });
-                if (!response.ok) throw new Error(`Erro da API: ${response.statusText}`);
-                const result = await response.json();
-                if (!result.candidates || !result.candidates[0].content.parts[0].text) {
-                     throw new Error('Resposta da IA inválida.');
-                }
-                const jsonText = result.candidates[0].content.parts[0].text;
-                const paletteData = JSON.parse(jsonText);
-                
-                // Exibe as cores
-                paletteData.colors.slice(0, 5).forEach(color => {
-                    const colorBox = document.createElement('div');
-                    colorBox.className = 'flex-1 rounded-lg flex items-end justify-center p-2 text-xs font-mono shadow-inner';
-                    colorBox.style.backgroundColor = color;
-                    // Lógica simples para cor do texto (preto ou branco)
-                    const hex = color.replace('#', '');
-                    const r = parseInt(hex.substring(0, 2), 16);
-                    const g = parseInt(hex.substring(2, 4), 16);
-                    const b = parseInt(hex.substring(4, 6), 16);
-                    const luminance = (0.299 * r + 0.587 * g + 0.114 * b) / 255;
-                    colorBox.style.color = luminance > 0.5 ? '#000' : '#FFF';
-                    colorBox.textContent = color;
-                    paletteContainer.appendChild(colorBox);
-                });
-
-            } catch (error) {
-                console.error("Erro ao gerar paleta:", error);
-                errorDiv.textContent = `Erro ao gerar paleta: ${error.message}.`;
+            const apiKey = LOCAL_API_KEY; 
+            
+            if (!apiKey) {
+                errorDiv.textContent = 'Erro: API Key não configurada. Adicione sua chave à variável LOCAL_API_KEY no código.';
                 errorDiv.className = 'mt-4 p-4 rounded-lg text-lg font-semibold bg-red-600/20 text-red-300';
                 errorDiv.classList.remove('hidden');
-            } finally {
                 loadingDiv.classList.add('hidden');
                 button.disabled = false;
-            }
-        }
-        
-        // --- 6. PROJETO 5: JOGO DA VELHA (IA) ---
-        
-        let tttBoard = [];
-        const tttPlayer = 'X';
-        const tttAI = 'O';
-
-        function initTicTacToe() {
-            modalContent.innerHTML = `
-                <h2 class="text-2xl font-bold mb-4 gradient-text">Jogo da Velha</h2>
-                <p id="ttt-status" class="text-gray-400 mb-4 text-center text-lg">Você é o X. Boa sorte!</p>
-                <div class="grid grid-cols-3 gap-2 max-w-xs mx-auto">
-                    ${[...Array(9).keys()].map(i => `<div id="ttt-cell-${i}" onclick="tttPlayerMove(${i})" class="w-24 h-24 bg-gray-800 rounded-lg flex items-center justify-center text-5xl font-bold cursor-pointer hover:bg-gray-700"></div>`).join('')}
-                </div>
-                <button onclick="tttResetGame()" class="mt-6 mx-auto block bg-brand-accent text-white font-semibold px-6 py-2 rounded-lg hover:bg-blue-600 transition-colors">
-                    Reiniciar
-                </button>
-            `;
-            tttResetGame();
-        }
-
-        function tttResetGame() {
-            tttBoard = Array(9).fill(null);
-            for (let i = 0; i < 9; i++) {
-                const cell = document.getElementById(`ttt-cell-${i}`);
-                cell.textContent = '';
-                cell.classList.remove('text-blue-400', 'text-red-400');
-            }
-            document.getElementById('ttt-status').textContent = 'Você é o X. Boa sorte!';
-        }
-
-        function tttPlayerMove(index) {
-            if (tttBoard[index] || tttCheckWinner(tttBoard)) return; // Se a célula estiver ocupada ou o jogo acabou
-
-            tttBoard[index] = tttPlayer;
-            document.getElementById(`ttt-cell-${index}`).textContent = tttPlayer;
-            document.getElementById(`ttt-cell-${index}`).classList.add('text-blue-400');
-
-            if (tttCheckWinner(tttBoard)) {
-                document.getElementById('ttt-status').textContent = `Você (X) venceu!`;
-                return;
-            }
-            if (tttBoard.every(cell => cell)) {
-                document.getElementById('ttt-status').textContent = 'Empate!';
                 return;
             }
 
-            // Movimento da IA
-            setTimeout(tttAiMove, 300);
-        }
-        
-        function tttAiMove() {
-            const bestMove = tttFindBestMove(tttBoard);
-            if (bestMove === -1) return; // Jogo já acabou
+            const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent?key=${apiKey}`;
 
-            tttBoard[bestMove] = tttAI;
-            document.getElementById(`ttt-cell-${bestMove}`).textContent = tttAI;
-            document.getElementById(`ttt-cell-${bestMove}`).classList.add('text-red-400');
-
-            if (tttCheckWinner(tttBoard)) {
-                document.getElementById('ttt-status').textContent = `A IA (O) venceu!`;
-                return;
-            }
-            if (tttBoard.every(cell => cell)) {
-                document.getElementById('ttt-status').textContent = 'Empate!';
-            }
-        }
-        
-        function tttCheckWinner(board) {
-            const lines = [
-                [0, 1, 2], [3, 4, 5], [6, 7, 8], // Linhas
-                [0, 3, 6], [1, 4, 7], [2, 5, 8], // Colunas
-                [0, 4, 8], [2, 4, 6]  // Diagonais
-            ];
-            for (let line of lines) {
-                const [a, b, c] = line;
-                if (board[a] && board[a] === board[b] && board[a] === board[c]) {
-                    return board[a]; // Retorna 'X' ou 'O'
-                }
-            }
-            return null;
-        }
-
-        // --- Lógica Minimax (IA) ---
-        function tttFindBestMove(board) {
-            let bestVal = -Infinity;
-            let move = -1;
-
-            for (let i = 0; i < 9; i++) {
-                if (board[i] === null) {
-                    board[i] = tttAI;
-                    let moveVal = tttMinimax(board, 0, false);
-                    board[i] = null; // Desfaz o movimento
-
-                    if (moveVal > bestVal) {
-                        move = i;
-                        bestVal = moveVal;
-                    }
-                }
-            }
-            return move;
-        }
-
-        function tttMinimax(board, depth, isMaximizing) {
-            const winner = tttCheckWinner(board);
-            if (winner === tttAI) return 10 - depth;
-            if (winner === tttPlayer) return depth - 10;
-            if (board.every(cell => cell)) return 0; // Empate
-
-            if (isMaximizing) { // Turno da IA (Max)
-                let bestVal = -Infinity;
-                for (let i = 0; i < 9; i++) {
-                    if (board[i] === null) {
-                        board[i] = tttAI;
-                        bestVal = Math.max(bestVal, tttMinimax(board, depth + 1, false));
-                        board[i] = null;
-                    }
-                }
-                return bestVal;
-            } else { // Turno do Jogador (Min)
-                let bestVal = Infinity;
-                for (let i = 0; i < 9; i++) {
-                    if (board[i] === null) {
-                        board[i] = tttPlayer;
-                        bestVal = Math.min(bestVal, tttMinimax(board, depth + 1, true));
-                        board[i] = null;
-                    }
-                }
-                return bestVal;
-            }
-        }
-        
-        // --- 7. PROJETO 6: SIMULADOR DE FORÇAS (D3) ---
-        
-        function initForceGraph() {
-            modalContent.innerHTML = `
-                <h2 class="text-2xl font-bold mb-4 gradient-text">Simulador de Forças (D3)</h2>
-                <p class="text-gray-400 mb-4">Um gráfico D3 com nós que se repelem e links que os puxam. Arraste os nós.</p>
-                <div id="force-container" class="w-full min-h-[450px] flex justify-center items-center">
-                    <svg id="force-svg"></svg>
-                </div>
-            `;
-            setTimeout(drawForceGraph, 100); // Garante que o SVG está no DOM
-        }
-        
-        function drawForceGraph() {
-            const container = d3.select("#force-container");
-            if (container.empty()) return;
+            const systemPrompt = `Você é um escritor criativo. O usuário fornecerá um prompt. 
+Escreva uma pequena história (cerca de 3-4 parágrafos) baseada nesse prompt.
+Responda APENAS com a história, sem introduções ou comentários.`;
             
-            const width = Math.min(600, container.node().getBoundingClientRect().width);
-            const height = 450;
-            
-            const svg = d3.select("#force-svg")
-                .attr("width", width)
-                .attr("height", height)
-                .attr("viewBox", `0 0 ${width} ${height}`)
-                .style("background-color", "#1a1a1a")
-                .style("border-radius", "8px");
-
-            // Dados de exemplo
-            const nodes = d3.range(20).map(i => ({ id: i }));
-            const links = d3.range(19).map(i => ({ source: i, target: Math.floor(Math.random() * (i + 1)) }));
-
-            const simulation = d3.forceSimulation(nodes)
-                .force("link", d3.forceLink(links).id(d => d.id).distance(50).strength(0.1))
-                .force("charge", d3.forceManyBody().strength(-150))
-                .force("center", d3.forceCenter(width / 2, height / 2));
-
-            const link = svg.append("g")
-                .attr("stroke", "#999")
-                .attr("stroke-opacity", 0.6)
-                .selectAll("line")
-                .data(links)
-                .join("line")
-                .attr("stroke-width", d => Math.sqrt(d.value));
-
-            const node = svg.append("g")
-                .attr("stroke", "#fff")
-                .attr("stroke-width", 1.5)
-                .selectAll("circle")
-                .data(nodes)
-                .join("circle")
-                .attr("r", 8)
-                .attr("fill", d3.scaleOrdinal(d3.schemeCategory10))
-                .call(d3.drag() // Adiciona drag
-                    .on("start", dragstarted)
-                    .on("drag", dragged)
-                    .on("end", dragended));
-
-            node.append("title").text(d => d.id);
-
-            simulation.on("tick", () => {
-                link.attr("x1", d => d.source.x)
-                    .attr("y1", d => d.source.y)
-                    .attr("x2", d => d.target.x)
-                    .attr("y2", d => d.target.y);
-                node.attr("cx", d => d.x)
-                    .attr("cy", d => d.y);
-            });
-            
-            function dragstarted(event) {
-                if (!event.active) simulation.alphaTarget(0.3).restart();
-                event.subject.fx = event.subject.x;
-                event.subject.fy = event.subject.y;
-            }
-            function dragged(event) {
-                event.subject.fx = event.x;
-                event.subject.fy = event.y;
-            }
-            function dragended(event) {
-                if (!event.active) simulation.alphaTarget(0);
-                event.subject.fx = null;
-                event.subject.fy = null;
-            }
-        }
-        
-        // --- 8. PROJETO 7: EDITOR MARKDOWN ---
-        
-        function initMarkdownEditor() {
-            modalContent.innerHTML = `
-                <h2 class="text-2xl font-bold mb-4 gradient-text">Editor Markdown</h2>
-                <p class="text-gray-400 mb-4">Escreva em Markdown à esquerda. O HTML será renderizado à direita.</p>
-                <div class="grid grid-cols-2 gap-4 h-[500px]">
-                    <textarea id="md-input" oninput="parseMarkdown()" class="w-full h-full p-3 rounded-lg bg-gray-800 text-white border border-gray-700 focus:border-brand-accent focus:ring-0" placeholder="Digite seu Markdown aqui...\n\n**Negrito**\n*Itálico*\n# Título 1\n## Título 2"></textarea>
-                    <div id="md-output" class="w-full h-full p-3 rounded-lg bg-gray-950 border border-gray-700 overflow-y-auto prose prose-invert"></div>
-                </div>
-            `;
-            // Carrega o plugin de tipografia do Tailwind para estilizar o HTML
-            const script = document.createElement('script');
-            script.src = 'https://cdn.tailwindcss.com/3.4.1?plugins=typography';
-            document.body.appendChild(script);
-            
-            parseMarkdown(); // Chama uma vez para mostrar o placeholder
-        }
-        
-        function parseMarkdown() {
-            const input = document.getElementById('md-input');
-            const output = document.getElementById('md-output');
-            if (!input || !output) return;
-            
-            let text = input.value || input.placeholder;
-            
-            // Regras de substituição (muito simples)
-            text = text
-                .replace(/^# (.*$)/gim, '<h1 class="text-3xl font-bold mb-3">$1</h1>')
-                .replace(/^## (.*$)/gim, '<h2 class="text-2xl font-bold mb-2">$1</h2>')
-                .replace(/^### (.*$)/gim, '<h3 class="text-xl font-bold mb-1">$1</h3>')
-                .replace(/\*\*(.*)\*\*/gim, '<strong>$1</strong>') // Negrito
-                .replace(/\*(.*)\*/gim, '<em>$1</em>') // Itálico
-                .replace(/`(.*)`/gim, '<code class="bg-gray-700 rounded px-1 py-0.5">$1</code>') // Inline Code
-                .replace(/\n/gim, '<br>'); // Novas linhas
-
-            output.innerHTML = text;
-        }
-
-        // --- 9. PROJETO 8: LISTA DE TAREFAS (localStorage) ---
-
-        let todoList = [];
-        
-        function initTodoList() {
-            modalContent.innerHTML = `
-                <h2 class="text-2xl font-bold mb-4 gradient-text">Lista de Tarefas</h2>
-                <p class="text-gray-400 mb-4">Adicione tarefas. Elas ficarão salvas no seu navegador.</p>
-                <div class="flex gap-2">
-                    <input type="text" id="todo-input" class="flex-grow p-3 rounded-lg bg-gray-800 text-white border border-gray-700 focus:border-brand-accent focus:ring-0" placeholder="Nova tarefa...">
-                    <button onclick="addTodo()" class="bg-brand-accent text-white font-semibold px-6 py-2 rounded-lg hover:bg-blue-600 transition-colors">
-                        Adicionar
-                    </button>
-                </div>
-                <ul id="todo-list-container" class="mt-6 space-y-2">
-                    <!-- Tarefas aparecem aqui -->
-                </ul>
-            `;
-            loadTodos();
-        }
-        
-        function loadTodos() {
-            todoList = JSON.parse(localStorage.getItem('todoList-batchhacks')) || [];
-            renderTodos();
-        }
-        
-        function saveTodos() {
-            localStorage.setItem('todoList-batchhacks', JSON.stringify(todoList));
-        }
-        
-        function renderTodos() {
-            const container = document.getElementById('todo-list-container');
-            if (!container) return;
-            container.innerHTML = '';
-            
-            if (todoList.length === 0) {
-                container.innerHTML = `<li class="text-gray-500 text-center">Nenhuma tarefa ainda.</li>`;
-                return;
-            }
-            
-            todoList.forEach((todo, index) => {
-                const li = document.createElement('li');
-                li.className = `flex justify-between items-center p-3 rounded-lg bg-gray-800 ${todo.done ? 'opacity-50' : ''}`;
-                li.innerHTML = `
-                    <span onclick="toggleTodo(${index})" class="cursor-pointer ${todo.done ? 'line-through text-gray-400' : 'text-white'}">
-                        ${todo.text}
-                    </span>
-                    <button onclick="removeTodo(${index})" class="text-red-500 hover:text-red-400 font-bold px-2">
-                        &times;
-                    </button>
-                `;
-                container.appendChild(li);
-            });
-        }
-        
-        function addTodo() {
-            const input = document.getElementById('todo-input');
-            if (!input || !input.value) return;
-            
-            todoList.push({ text: input.value, done: false });
-            input.value = '';
-            saveTodos();
-            renderTodos();
-        }
-        
-        function removeTodo(index) {
-            todoList.splice(index, 1);
-            saveTodos();
-            renderTodos();
-        }
-        
-        function toggleTodo(index) {
-            todoList[index].done = !todoList[index].done;
-            saveTodos();
-            renderTodos();
-        }
-        
-        // --- 10. PROJETO 9: GERADOR DE IMAGENS (IA) ---
-        
-        function initImageGenerator() {
-             modalContent.innerHTML = `
-                <h2 class="text-2xl font-bold mb-4 gradient-text">Gerador de Imagens (IA)</h2>
-                <p class="text-gray-400 mb-4">Descreva a imagem que você quer criar (ex: "um gato astronauta flutuando no espaço").</p>
-                <input type="text" id="image-prompt" class="w-full p-3 rounded-lg bg-gray-800 text-white border border-gray-700 focus:border-brand-accent focus:ring-0" placeholder="Ex: 'um robô tocando piano na chuva'">
-                <button onclick="generateImage()" id="image-button" class="mt-4 bg-brand-accent text-white font-semibold px-6 py-2 rounded-lg hover:bg-blue-600 transition-colors">
-                    Gerar Imagem
-                </button>
-                <div id="image-loading" class="hidden mt-4 text-center text-gray-400">
-                    <div class="inline-block animate-spin rounded-full h-6 w-6 border-b-2 border-brand-accent"></div>
-                    <p class="mt-2">Gerando imagem... (Isso pode levar um momento)</p>
-                </div>
-                <div id="image-error" class="mt-4 p-4 rounded-lg text-lg font-semibold hidden"></div>
-                <div id="image-container" class="mt-6 w-full aspect-square bg-gray-950 rounded-lg flex items-center justify-center">
-                    <!-- A imagem gerada pela IA aparecerá aqui -->
-                    <p class="text-gray-600">Sua imagem aparecerá aqui.</p>
-                </div>
-            `;
-        }
-        
-        async function generateImage() {
-            const prompt = document.getElementById('image-prompt').value;
-            const errorDiv = document.getElementById('image-error');
-            const loadingDiv = document.getElementById('image-loading');
-            const button = document.getElementById('image-button');
-            const imageContainer = document.getElementById('image-container');
-
-            if (!prompt) {
-                errorDiv.textContent = 'Por favor, digite uma descrição.';
-                errorDiv.className = 'mt-4 p-4 rounded-lg text-lg font-semibold bg-red-600/20 text-red-300';
-                errorDiv.classList.remove('hidden');
-                return;
-            }
-
-            loadingDiv.classList.remove('hidden');
-            errorDiv.classList.add('hidden');
-            imageContainer.innerHTML = '<p class="text-gray-600">Carregando...</p>';
-            button.disabled = true;
-
-            const apiKey = LOCAL_API_KEY; // Deixe em branco
-            const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/imagen-4.0-generate-001:predict?key=${apiKey}`;
-
-            const payload = {
-                instances: { prompt: prompt },
-                parameters: { "sampleCount": 1 }
+             const payload = {
+                contents: [{ parts: [{ text: prompt }] }],
+                systemInstruction: {
+                    parts: [{ text: systemPrompt }]
+                },
             };
 
             try {
@@ -1600,26 +768,28 @@ Formate a saída estritamente de acordo com o JSON schema.`;
 
                 const result = await response.json();
                 
-                if (result.predictions && result.predictions[0]?.bytesBase64Encoded) {
-                    const imageData = result.predictions[0].bytesBase64Encoded;
-                    const imageUrl = `data:image/png;base64,${imageData}`;
-                    imageContainer.innerHTML = `<img src="${imageUrl}" alt="Imagem gerada por IA" class="w-full h-full object-contain rounded-lg">`;
+                if (result.candidates && result.candidates[0]?.content?.parts[0]?.text) {
+                    let storyText = result.candidates[0].content.parts[0].text;
+                    // Converte quebras de linha (\n) em tags <br> para formatação HTML
+                    storyText = storyText.replace(/\n/g, '<br>');
+                    
+                    outputArea.innerHTML = storyText;
+                    outputArea.classList.remove('hidden');
                 } else {
-                    throw new Error('Resposta da API inválida ou sem imagem.');
+                    throw new Error('Resposta da API inválida.');
                 }
 
             } catch (error) {
-                console.error("Erro ao gerar imagem:", error);
-                errorDiv.textContent = `Erro ao gerar imagem: ${error.message}.`;
+                console.error("Erro ao gerar história:", error);
+                errorDiv.textContent = `Erro ao gerar história: ${error.message}.`;
                 errorDiv.className = 'mt-4 p-4 rounded-lg text-lg font-semibold bg-red-600/20 text-red-300';
                 errorDiv.classList.remove('hidden');
-                imageContainer.innerHTML = `<p class="text-red-400">Falha ao carregar a imagem.</p>`;
             } finally {
                 loadingDiv.classList.add('hidden');
                 button.disabled = false;
             }
         }
-        
+
         // --- 11. PROJETO 10: JOGO PONG ---
         
         let pongGame = {};
