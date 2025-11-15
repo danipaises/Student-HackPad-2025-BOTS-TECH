@@ -49,16 +49,15 @@
         const db = getFirestore(app);
         const auth = getAuth(app);
         
-        // --- CORREÇÃO (Bug de Recarregar a Página) ---
         // As variáveis são declaradas aqui, mas os elementos (getElementById)
         // só são buscados DEPOIS que o DOM estiver carregado.
         let mainAppDiv, loginDiv, loginBtn, logoutBtn, userEmailDisplay;
 
         // Função principal de inicialização
         function initApp() {
-            // Inicializa apps locais que não dependem do login
-            initPomodoroApp();
-            initCalculadoraApp(); 
+            // --- CORREÇÃO: Removemos a inicialização dos apps locais daqui ---
+            // initPomodoroApp();  <-- REMOVIDO
+            // initCalculadoraApp(); <-- REMOVIDO
 
             // Adiciona listeners aos botões de login/logout
             loginBtn.addEventListener('click', loginWithGoogle);
@@ -75,6 +74,7 @@
                     const appId = 'studyhub-hackpad'; 
                     
                     // Inicializa os componentes que dependem do Firebase
+                    // (Agora esta função inicializa TUDO)
                     initComponents(db, auth, appId, user.uid);
                 } else {
                     // --- USUÁRIO ESTÁ DESLOGADO ---
@@ -104,7 +104,6 @@
             }
         }
         
-        // --- CORREÇÃO (Bug de Recarregar a Página) ---
         // O script espera o DOM carregar ANTES de tentar encontrar
         // os elementos e inicializar o app.
         document.addEventListener('DOMContentLoaded', () => {
@@ -121,6 +120,7 @@
 
         
         // Esta função wrapper será chamada APÓS o login
+        // --- CORREÇÃO: Agora ela inicializa TODAS as ferramentas ---
         function initComponents(db, auth, appId, userId) {
             
             // --- Lógica de Navegação (SPA) ---
@@ -234,6 +234,8 @@
                     }
                 });
                 todoInput.addEventListener('keypress', (e) => { if (e.key === 'Enter') { addTodoBtn.click(); } });
+                
+                // Listener do Firestore para carregar dados
                 onSnapshot(todoCollectionRef, (snapshot) => {
                     const tasks = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
                     renderTasks(tasks);
@@ -419,101 +421,107 @@
                 });
             }
 
-            // --- INICIALIZAÇÃO DE TODOS OS MÓDULOS (Firebase) ---
+            // --- Módulo: Timer Pomodoro (LOCAL - MOVIDO PARA CÁ) ---
+            function initPomodoroApp() {
+                const timerDisplay = document.getElementById('timerDisplay');
+                const startBtn = document.getElementById('startPomodoroBtn');
+                const resetBtn = document.getElementById('resetPomodoroBtn');
+                const statusDisplay = document.getElementById('pomodoroStatus');
+                
+                const DURATION = 25 * 60;
+                let secondsRemaining = DURATION;
+                let timerInterval = null;
+                let isPaused = true;
+
+                function formatTime(seconds) {
+                    const min = Math.floor(seconds / 60); const sec = seconds % 60;
+                    return `${String(min).padStart(2, '0')}:${String(sec).padStart(2, '0')}`;
+                }
+                function updateDisplay() { timerDisplay.textContent = formatTime(secondsRemaining); }
+                function startTimer() {
+                    isPaused = false; startBtn.textContent = 'Pausar'; statusDisplay.textContent = 'Hora de focar!';
+                    timerInterval = setInterval(() => {
+                        secondsRemaining--; updateDisplay();
+                        if (secondsRemaining <= 0) {
+                            clearInterval(timerInterval);
+                            statusDisplay.textContent = 'Pausa! (5 min)';
+                            if (window.showGlobalFeedback) { window.showGlobalFeedback('Pomodoro concluído! Hora de uma pausa.', 5000); }
+                            resetTimer(false);
+                        }
+                    }, 1000);
+                }
+                function pauseTimer() {
+                    isPaused = true; clearInterval(timerInterval);
+                    startBtn.textContent = 'Continuar'; statusDisplay.textContent = 'Pausado';
+                }
+                function resetTimer(showAlert = true) {
+                    clearInterval(timerInterval); isPaused = true; secondsRemaining = DURATION;
+                    updateDisplay(); startBtn.textContent = 'Iniciar'; statusDisplay.textContent = '\u00A0';
+                    if(showAlert && window.showGlobalFeedback) { window.showGlobalFeedback('Timer resetado.'); }
+                }
+                startBtn.addEventListener('click', () => { if (isPaused) { startTimer(); } else { pauseTimer(); } });
+                resetBtn.addEventListener('click', () => resetTimer(true)); // Passa true explicitamente
+                updateDisplay();
+            }
+
+            // --- Módulo: Calculadora de Média (LOCAL - MOVIDO PARA CÁ) ---
+            function initCalculadoraApp() {
+                const addNotaBtn = document.getElementById('addNotaBtn');
+                const notasContainer = document.getElementById('notasContainer');
+                const calcularMediaBtn = document.getElementById('calcularMediaBtn');
+                const mediaResultado = document.getElementById('mediaResultado');
+                
+                let notaCount = 2; // Começa com 2 campos
+
+                addNotaBtn.addEventListener('click', () => {
+                    notaCount++;
+                    const div = document.createElement('div');
+                    div.className = "flex items-center gap-2";
+                    div.innerHTML = `
+                        <label for="nota-${notaCount}" class="text-sm font-medium text-gray-700 w-12">Nota ${notaCount}:</label>
+                        <input type="number" id="nota-${notaCount}" class="nota-input w-full p-2 border border-gray-300 rounded-lg" placeholder="0.0">
+                    `;
+                    notasContainer.appendChild(div);
+                });
+
+                calcularMediaBtn.addEventListener('click', () => {
+                    const inputs = document.querySelectorAll('.nota-input');
+                    let total = 0;
+                    let count = 0;
+                    inputs.forEach(input => {
+                        const value = parseFloat(input.value);
+                        if (!isNaN(value)) {
+                            total += value;
+                            count++;
+                        }
+                    });
+
+                    if (count > 0) {
+                        const media = total / count;
+                        mediaResultado.textContent = `Sua média é: ${media.toFixed(2)}`;
+                        mediaResultado.classList.remove('text-red-600');
+                        mediaResultado.classList.add('text-green-600');
+                    } else {
+                        mediaResultado.textContent = 'Por favor, insira pelo menos uma nota válida.';
+                        mediaResultado.classList.add('text-red-600');
+                        mediaResultado.classList.remove('text-green-600');
+                    }
+                });
+            }
+
+            // --- INICIALIZAÇÃO DE TODOS OS MÓCULOS ---
             initTodoApp();
             initFlashcardApp();
             initNotepadApp();
             initLinksApp();
             initMetasApp(); 
+            initPomodoroApp(); // <-- CHAMADA MOVIDA PARA CÁ
+            initCalculadoraApp(); // <-- CHAMADA MOVIDA PARA CÁ
         }
 
-        // --- Módulo: Timer Pomodoro (LOCAL - Não depende do Login) ---
-        function initPomodoroApp() {
-            const timerDisplay = document.getElementById('timerDisplay');
-            const startBtn = document.getElementById('startPomodoroBtn');
-            const resetBtn = document.getElementById('resetPomodoroBtn');
-            const statusDisplay = document.getElementById('pomodoroStatus');
-            
-            const DURATION = 25 * 60;
-            let secondsRemaining = DURATION;
-            let timerInterval = null;
-            let isPaused = true;
+        // --- As definições de initPomodoroApp e initCalculadoraApp foram MOVIDAS
+        // para DENTRO de initComponents ---
 
-            function formatTime(seconds) {
-                const min = Math.floor(seconds / 60); const sec = seconds % 60;
-                return `${String(min).padStart(2, '0')}:${String(sec).padStart(2, '0')}`;
-            }
-            function updateDisplay() { timerDisplay.textContent = formatTime(secondsRemaining); }
-            function startTimer() {
-                isPaused = false; startBtn.textContent = 'Pausar'; statusDisplay.textContent = 'Hora de focar!';
-                timerInterval = setInterval(() => {
-                    secondsRemaining--; updateDisplay();
-                    if (secondsRemaining <= 0) {
-                        clearInterval(timerInterval);
-                        statusDisplay.textContent = 'Pausa! (5 min)';
-                        if (window.showGlobalFeedback) { window.showGlobalFeedback('Pomodoro concluído! Hora de uma pausa.', 5000); }
-                        resetTimer(false);
-                    }
-                }, 1000);
-            }
-            function pauseTimer() {
-                isPaused = true; clearInterval(timerInterval);
-                startBtn.textContent = 'Continuar'; statusDisplay.textContent = 'Pausado';
-            }
-            function resetTimer(showAlert = true) {
-                clearInterval(timerInterval); isPaused = true; secondsRemaining = DURATION;
-                updateDisplay(); startBtn.textContent = 'Iniciar'; statusDisplay.textContent = '\u00A0';
-                if(showAlert && window.showGlobalFeedback) { window.showGlobalFeedback('Timer resetado.'); }
-            }
-            startBtn.addEventListener('click', () => { if (isPaused) { startTimer(); } else { pauseTimer(); } });
-            resetBtn.addEventListener('click', () => resetTimer(true)); // Passa true explicitamente
-            updateDisplay();
-        }
-
-        // --- Módulo: Calculadora de Média (LOCAL - Não depende do Login) ---
-        function initCalculadoraApp() {
-            const addNotaBtn = document.getElementById('addNotaBtn');
-            const notasContainer = document.getElementById('notasContainer');
-            const calcularMediaBtn = document.getElementById('calcularMediaBtn');
-            const mediaResultado = document.getElementById('mediaResultado');
-            
-            let notaCount = 2; // Começa com 2 campos
-
-            addNotaBtn.addEventListener('click', () => {
-                notaCount++;
-                const div = document.createElement('div');
-                div.className = "flex items-center gap-2";
-                div.innerHTML = `
-                    <label for="nota-${notaCount}" class="text-sm font-medium text-gray-700 w-12">Nota ${notaCount}:</label>
-                    <input type="number" id="nota-${notaCount}" class="nota-input w-full p-2 border border-gray-300 rounded-lg" placeholder="0.0">
-                `;
-                notasContainer.appendChild(div);
-            });
-
-            calcularMediaBtn.addEventListener('click', () => {
-                const inputs = document.querySelectorAll('.nota-input');
-                let total = 0;
-                let count = 0;
-                inputs.forEach(input => {
-                    const value = parseFloat(input.value);
-                    if (!isNaN(value)) {
-                        total += value;
-                        count++;
-                    }
-                });
-
-                if (count > 0) {
-                    const media = total / count;
-                    mediaResultado.textContent = `Sua média é: ${media.toFixed(2)}`;
-                    mediaResultado.classList.remove('text-red-600');
-                    mediaResultado.classList.add('text-green-600');
-                } else {
-                    mediaResultado.textContent = 'Por favor, insira pelo menos uma nota válida.';
-                    mediaResultado.classList.add('text-red-600');
-                    mediaResultado.classList.remove('text-green-600');
-                }
-            });
-        }
     </script>
     
     <style>
@@ -701,7 +709,7 @@
                 <div class="bg-white p-8 rounded-full shadow-2xl w-80 h-80 flex flex-col items-center justify-center mx-auto">
                     <h3 class="text-gray-500 text-lg font-medium">Tempo de Foco</h3>
                     <h1 id="timerDisplay" class="text-8xl font-extrabold text-gray-900 my-4">25:00</h1>
-                    <p id="pomodoroStatus" class="text-lg text-gray-600 font-semibold">&nbsp;</p>
+                    <p id="pomodoroStatus" class="text-lg text-gray-600 font-semibold">&nbsp;</cSript>
                 </div>
                 <div class="mt-8 flex justify-center gap-4">
                     <button id="startPomodoroBtn" class="bg-indigo-600 text-white text-xl py-4 px-10 rounded-lg font-bold hover:bg-indigo-700 transition shadow-lg">Iniciar</button>
