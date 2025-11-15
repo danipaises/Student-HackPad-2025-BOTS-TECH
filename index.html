@@ -1,930 +1,792 @@
 <!DOCTYPE html>
-<html lang="pt-BR" class="dark">
+<html lang="pt-br">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale-1.0">
-    <title>Projeto para BatchHacks</title>
-    <!-- Carrega o Tailwind CSS -->
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Central de Estudos - HackPad</title>
+    <!-- Carregando Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
-    <!-- Carrega a fonte Inter -->
+    <!-- Carregando a fonte Inter -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
-    <!-- Carrega a D3.js (para o Mapa de Calor) -->
-    <script src="https://d3js.org/d3.v7.min.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    
+    <!-- SDKs do Firebase (Módulos Atualizados para Login) -->
+    <script type="module">
+        // Importação da configuração local - REMOVIDO
+        // import { firebaseConfig } from './firebase-config.js';
 
-    <!-- Configuração do Tailwind e Estilos Personalizados -->
-    <script>
-        tailwind.config = {
-            darkMode: 'class', // Ativa o modo escuro
-            theme: {
-                extend: {
-                    fontFamily: {
-                        sans: ['Inter', 'sans-serif'], // Define 'Inter' como a fonte padrão
-                    },
-                    colors: {
-                        'brand-primary': '#0A0A0A', // Um preto profundo para o fundo
-                        'brand-secondary': '#F5F5F5', // Um branco suave para o texto
-                        'brand-accent': '#3B82F6', // Um azul vibrante para destaques
+        // --- CORREÇÃO: Configuração do Firebase movida para cá ---
+        const firebaseConfig = {
+          apiKey: "AIzaSyD1j7ynpoB_Qalk8h9xZPmCSnAGCwKhHGk",
+          authDomain: "strange-descent-449722-b5.firebaseapp.com",
+          projectId: "strange-descent-449722-b5",
+          storageBucket: "strange-descent-449722-b5.firebasestorage.app",
+          messagingSenderId: "563644382085",
+          appId: "1:563644382085:web:9a8b42cceec735247ce2ec"
+        };
+        
+        // --- IMPORTANTE: CORREÇÃO PARA O ERRO "auth/unauthorized-domain" ---
+        // O erro que você está vendo (auth/unauthorized-domain) NÃO é um bug no código.
+        // É uma configuração de segurança do Firebase.
+        //
+        // Para corrigir, você PRECISA autorizar o domínio onde este app está rodando:
+        //
+        // 1. Abra o Console do Firebase: https://console.firebase.google.com/
+        // 2. Vá para o seu projeto (strange-descent-449722-b5).
+        // 3. No menu, clique em "Authentication".
+        // 4. Clique na aba "Sign-in method" (Método de login).
+        // 5. Role para baixo até a seção "Authorized domains" (Domínios autorizados).
+        // 6. Clique em "Add domain" (Adicionar domínio).
+        // 7. Adicione o domínio que aparece na barra de endereços do seu navegador AGORA.
+        //
+        // Depois de adicionar o domínio, salve e o login funcionará.
+        // --- Fim da Correção ---
+
+        // ADICIONADO: Log de aviso para o console
+        console.warn(
+            'Lembrete: O erro "auth/unauthorized-domain" deve ser corrigido no Console do Firebase. ' +
+            'Adicione este domínio à lista de "Domínios autorizados" na aba "Authentication" -> "Sign-in method".'
+        );
+
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+        import { 
+            getAuth, 
+            onAuthStateChanged, // Ouve mudanças no login
+            GoogleAuthProvider, // Provedor do Google
+            signInWithPopup,    // Função de login
+            signOut             // Função de logout
+        } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { 
+            getFirestore, doc, getDoc, setDoc, onSnapshot, 
+            collection, query, addDoc, getDocs, deleteDoc, updateDoc 
+        } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+
+        // Inicializa o Firebase
+        const app = initializeApp(firebaseConfig);
+        const db = getFirestore(app);
+        const auth = getAuth(app);
+        
+        // Elementos da UI (Login vs App)
+        const mainAppDiv = document.getElementById('main-app');
+        const loginDiv = document.getElementById('app-login');
+        const loginBtn = document.getElementById('loginWithGoogleBtn');
+        const logoutBtn = document.getElementById('logoutBtn');
+        const userEmailDisplay = document.getElementById('userEmail');
+
+        // Função principal de inicialização (agora cuida do login)
+        function initApp() {
+            // Inicializa apps locais que não dependem do login
+            initPomodoroApp();
+            initCalculadoraApp(); // Nova ferramenta local
+
+            // Adiciona listeners aos botões de login/logout
+            loginBtn.addEventListener('click', loginWithGoogle);
+            logoutBtn.addEventListener('click', logout);
+
+            // Ouve o estado da autenticação
+            onAuthStateChanged(auth, (user) => {
+                if (user) {
+                    // --- USUÁRIO ESTÁ LOGADO ---
+                    mainAppDiv.style.display = 'flex'; // Mostra o app
+                    loginDiv.style.display = 'none'; // Esconde o login
+                    userEmailDisplay.textContent = user.email; // Mostra o email
+                    
+                    // ID do App (pode ser qualquer string, já que __app_id não existe mais)
+                    const appId = 'studyhub-hackpad'; 
+                    
+                    // Inicializa os componentes que dependem do Firebase
+                    initComponents(db, auth, appId, user.uid);
+                } else {
+                    // --- USUÁRIO ESTÁ DESLOGADO ---
+                    mainAppDiv.style.display = 'none'; // Esconde o app
+                    loginDiv.style.display = 'flex'; // Mostra o login
+                    userEmailDisplay.textContent = '';
+                }
+            });
+        }
+        
+        // Função para fazer login com Google
+        async function loginWithGoogle() {
+            const provider = new GoogleAuthProvider();
+            try {
+                await signInWithPopup(auth, provider);
+                // O onAuthStateChanged vai cuidar de mostrar o app
+            } catch (error) {
+                console.error("Erro ao fazer login com Google:", error);
+            }
+        }
+
+        // Função para fazer logout
+        async function logout() {
+            try {
+                await signOut(auth);
+                // O onAuthStateChanged vai cuidar de mostrar a tela de login
+            } catch (error) {
+                console.error("Erro ao fazer logout:", error);
+            }
+        }
+        
+        // Dispara a inicialização quando o DOM estiver pronto
+        document.addEventListener('DOMContentLoaded', initApp);
+
+        
+        // Esta função wrapper será chamada APÓS o login
+        function initComponents(db, auth, appId, userId) {
+            
+            // --- Lógica de Navegação (SPA) ---
+            const navLinks = document.querySelectorAll('.nav-link');
+            const appViews = document.querySelectorAll('.app-view');
+
+            navLinks.forEach(link => {
+                link.addEventListener('click', () => {
+                    const targetId = link.dataset.target;
+                    appViews.forEach(view => view.classList.add('hidden'));
+                    document.getElementById(targetId).classList.remove('hidden');
+                    navLinks.forEach(nav => nav.classList.remove('active'));
+                    link.classList.add('active');
+                });
+            });
+
+            // --- Gerenciador de Feedback Global ---
+            const feedbackModal = document.getElementById('feedbackModal');
+            const feedbackMessage = document.getElementById('feedbackMessage');
+            let feedbackTimeout;
+            
+            function showFeedback(message, duration = 1500) {
+                clearTimeout(feedbackTimeout);
+                feedbackMessage.textContent = message;
+                feedbackModal.classList.remove('hidden');
+                feedbackTimeout = setTimeout(() => {
+                    feedbackModal.classList.add('hidden');
+                }, duration);
+            }
+            // Disponibiliza globalmente para o Pomodoro
+            window.showGlobalFeedback = showFeedback;
+            
+            // --- Gerenciador de Confirmação Global ---
+            const confirmModal = document.getElementById('confirmModal');
+            const confirmMessage = document.getElementById('confirmMessage');
+            const confirmBtnYes = document.getElementById('confirmBtnYes');
+            const confirmBtnNo = document.getElementById('confirmBtnNo');
+
+            function showConfirm(message, onConfirm) {
+                confirmMessage.textContent = message;
+                confirmModal.classList.remove('hidden');
+                
+                const newConfirmBtnYes = confirmBtnYes.cloneNode(true);
+                confirmBtnYes.parentNode.replaceChild(newConfirmBtnYes, confirmBtnYes);
+                
+                const newConfirmBtnNo = confirmBtnNo.cloneNode(true);
+                confirmBtnNo.parentNode.replaceChild(newConfirmBtnNo, confirmBtnNo);
+                
+                newConfirmBtnYes.addEventListener('click', () => {
+                    onConfirm();
+                    confirmModal.classList.add('hidden');
+                });
+                newConfirmBtnNo.addEventListener('click', () => {
+                    confirmModal.classList.add('hidden');
+                });
+            }
+
+            // --- Verificação de Inicialização ---
+            if (!db || !userId) {
+                console.error("Firebase não inicializado corretamente. Os aplicativos conectados à nuvem não funcionarão.");
+                return;
+            }
+            
+            // --- Referências do Firestore ---
+            // Caminhos agora usam o appId 'studyhub-hackpad'
+            const todoCollectionRef = collection(db, `artifacts/${appId}/users/${userId}/tarefas`);
+            const flashcardsCollectionRef = collection(db, `artifacts/${appId}/users/${userId}/flashcards`);
+            const notepadDocRef = doc(db, `artifacts/${appId}/users/${userId}/blocoDeNotas/unicaNota`);
+            const linksCollectionRef = collection(db, `artifacts/${appId}/users/${userId}/links`);
+            const metasDocRef = doc(db, `artifacts/${appId}/users/${userId}/metas/diarias`); // NOVO
+
+            // --- Módulo: Lista de Tarefas (Firestore) ---
+            function initTodoApp() {
+                const todoInput = document.getElementById('todoInput');
+                const addTodoBtn = document.getElementById('addTodoBtn');
+                const todoList = document.getElementById('todoList');
+
+                function renderTasks(tasks) {
+                    todoList.innerHTML = ''; 
+                    if (tasks.length === 0) {
+                        todoList.innerHTML = '<p class="text-gray-500 text-center">Nenhuma tarefa ainda.</p>';
+                        return;
                     }
-                },
-            },
+                    tasks.forEach((task) => {
+                        const li = document.createElement('li');
+                        li.className = `task-item flex items-center justify-between bg-gray-50 p-3 rounded-lg border ${task.completed ? 'completed' : ''}`;
+                        li.innerHTML = `
+                            <span class="flex-grow cursor-pointer">${task.text}</span>
+                            <button data-id="${task.id}" class="delete-task-btn text-red-500 hover:text-red-700 p-1 rounded-full">
+                                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="w-5 h-5"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>
+                            </button>
+                        `;
+                        li.querySelector('span').addEventListener('click', async () => {
+                            const taskDocRef = doc(db, `artifacts/${appId}/users/${userId}/tarefas`, task.id);
+                            await updateDoc(taskDocRef, { completed: !task.completed });
+                        });
+                        li.querySelector('.delete-task-btn').addEventListener('click', async () => {
+                            const taskDocRef = doc(db, `artifacts/${appId}/users/${userId}/tarefas`, task.id);
+                            await deleteDoc(taskDocRef);
+                        });
+                        todoList.appendChild(li);
+                    });
+                }
+
+                addTodoBtn.addEventListener('click', async () => {
+                    const text = todoInput.value.trim();
+                    if (text) {
+                        try {
+                            await addDoc(todoCollectionRef, { text: text, completed: false });
+                            todoInput.value = '';
+                        } catch (e) { console.error("Erro ao adicionar tarefa: ", e); showFeedback("Erro ao salvar tarefa."); }
+                    }
+                });
+                todoInput.addEventListener('keypress', (e) => { if (e.key === 'Enter') { addTodoBtn.click(); } });
+                onSnapshot(todoCollectionRef, (snapshot) => {
+                    const tasks = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+                    renderTasks(tasks);
+                });
+            }
+
+            // --- Módulo: Flashcards (Firestore) ---
+            function initFlashcardApp() {
+                const frenteInput = document.getElementById('frente');
+                const versoInput = document.getElementById('verso');
+                const addCardBtn = document.getElementById('addCardBtn');
+                const clearCardsBtn = document.getElementById('clearCardsBtn');
+                const cardContainer = document.getElementById('cardContainer');
+                const cardFrente = document.getElementById('cardFrente');
+                const cardVerso = document.getElementById('cardVerso');
+                const cardCounter = document.getElementById('cardCounter');
+                const prevBtn = document.getElementById('prevBtn');
+                const flipBtn = document.getElementById('flipBtn');
+                const nextBtn = document.getElementById('nextBtn');
+                const shuffleBtn = document.getElementById('shuffleBtn');
+
+                let cards = [];
+                let currentCardIndex = 0;
+                let isFlipped = false;
+                
+                function updateCardView() {
+                    if (cards.length === 0) {
+                        cardFrente.textContent = 'Crie um card para começar!';
+                        cardVerso.textContent = '';
+                        cardCounter.textContent = 'Card 0 / 0';
+                        disableControls(true);
+                        return;
+                    }
+                    disableControls(false);
+                    if (isFlipped) {
+                        cardContainer.classList.remove('is-flipped');
+                        isFlipped = false;
+                    }
+                    const card = cards[currentCardIndex];
+                    if (card) {
+                        cardFrente.textContent = card.frente;
+                        cardVerso.textContent = card.verso;
+                        cardCounter.textContent = `Card ${currentCardIndex + 1} / ${cards.length}`;
+                        prevBtn.disabled = currentCardIndex === 0;
+                        nextBtn.disabled = currentCardIndex === cards.length - 1;
+                    } else if (cards.length > 0) {
+                        currentCardIndex = 0;
+                        updateCardView();
+                    }
+                }
+
+                function disableControls(disabled) {
+                    prevBtn.disabled = disabled; nextBtn.disabled = disabled;
+                    flipBtn.disabled = disabled; shuffleBtn.disabled = disabled;
+                }
+
+                async function addCard() {
+                    const frente = frenteInput.value.trim(); const verso = versoInput.value.trim();
+                    if (!frente || !verso) { showFeedback('Preencha a frente e o verso.'); return; }
+                    try {
+                        await addDoc(flashcardsCollectionRef, { frente, verso });
+                        frenteInput.value = ''; versoInput.value = ''; frenteInput.focus();
+                        showFeedback('Card adicionado!');
+                    } catch (e) { console.error("Erro ao adicionar card: ", e); showFeedback("Erro ao salvar card."); }
+                }
+
+                function clearCards() {
+                    showConfirm('Tem certeza que deseja apagar TODOS os cards?', async () => {
+                        try {
+                            const querySnapshot = await getDocs(flashcardsCollectionRef);
+                            const deletePromises = [];
+                            querySnapshot.forEach((docSnap) => { deletePromises.push(deleteDoc(docSnap.ref)); });
+                            await Promise.all(deletePromises);
+                            showFeedback('Todos os cards foram apagados.');
+                        } catch (e) { console.error("Erro ao limpar cards: ", e); showFeedback("Erro ao apagar cards."); }
+                    });
+                }
+                function flipCard() { if (cards.length === 0) return; isFlipped = !isFlipped; cardContainer.classList.toggle('is-flipped'); }
+                function nextCard() { if (currentCardIndex < cards.length - 1) { currentCardIndex++; updateCardView(); } }
+                function prevCard() { if (currentCardIndex > 0) { currentCardIndex--; updateCardView(); } }
+                function shuffleCards() {
+                    if (cards.length < 2) { showFeedback('Adicione pelo menos 2 cards para embaralhar.'); return; }
+                    for (let i = cards.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [cards[i], cards[j]] = [cards[j], cards[i]]; }
+                    currentCardIndex = 0; showFeedback('Cards embaralhados!'); updateCardView();
+                }
+
+                addCardBtn.addEventListener('click', addCard);
+                clearCardsBtn.addEventListener('click', clearCards);
+                flipBtn.addEventListener('click', flipCard);
+                nextBtn.addEventListener('click', nextCard);
+                prevBtn.addEventListener('click', prevCard);
+                shuffleBtn.addEventListener('click', shuffleCards);
+
+                onSnapshot(flashcardsCollectionRef, (snapshot) => {
+                    cards = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+                    if (currentCardIndex >= cards.length) { currentCardIndex = 0; }
+                    updateCardView();
+                });
+            }
+
+            // --- Módulo: Bloco de Notas (Firestore) ---
+            function initNotepadApp() {
+                const notepadText = document.getElementById('notepadText');
+                const saveNoteBtn = document.getElementById('saveNoteBtn');
+
+                function loadNote() {
+                    onSnapshot(notepadDocRef, (docSnap) => {
+                        if (docSnap.exists()) { notepadText.value = docSnap.data().content || ''; } 
+                        else { notepadText.value = ''; }
+                    }, (error) => { console.error("Erro ao carregar nota: ", error); notepadText.value = "Erro ao carregar nota."; });
+                }
+                async function saveNote() {
+                    try {
+                        await setDoc(notepadDocRef, { content: notepadText.value });
+                        showFeedback('Anotação salva!');
+                    } catch (e) { console.error("Erro ao salvar nota: ", e); showFeedback('Erro ao salvar.'); }
+                }
+                saveNoteBtn.addEventListener('click', saveNote);
+                loadNote();
+            }
+
+            // --- Módulo: Links Rápidos (Firestore) ---
+            function initLinksApp() {
+                const linkNameInput = document.getElementById('linkNameInput');
+                const linkUrlInput = document.getElementById('linkUrlInput');
+                const addLinkBtn = document.getElementById('addLinkBtn');
+                const linksList = document.getElementById('linksList');
+
+                function renderLinks(links) {
+                    linksList.innerHTML = '';
+                    if (links.length === 0) { linksList.innerHTML = '<p class="text-gray-500 text-center">Nenhum link salvo.</p>'; return; }
+                    links.forEach(link => {
+                        const li = document.createElement('li');
+                        li.className = 'flex items-center justify-between bg-gray-50 p-3 rounded-lg border';
+                        li.innerHTML = `
+                            <a href="${link.url}" target="_blank" rel="noopener noreferrer" class="font-medium text-indigo-600 hover:text-indigo-800 break-all">
+                                ${link.nome}
+                                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="w-4 h-4 inline-block ml-1"><path stroke-linecap="round" stroke-linejoin="round" d="M13.5 6H5.25A2.25 2.25 0 003 8.25v10.5A2.25 2.25 0 005.25 21h10.5A2.25 2.25 0 0018 18.75V10.5m-10.5 6L21 3m0 0h-5.25M21 3v5.25" /></svg>
+                            </a>
+                            <button data-id="${link.id}" class="delete-link-btn text-red-500 hover:text-red-700 p-1 rounded-full flex-shrink-0 ml-2">
+                                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="w-5 h-5"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>
+                            </button>
+                        `;
+                        li.querySelector('.delete-link-btn').addEventListener('click', async () => {
+                            const linkDocRef = doc(db, `artifacts/${appId}/users/${userId}/links`, link.id);
+                            await deleteDoc(linkDocRef);
+                        });
+                        linksList.appendChild(li);
+                    });
+                }
+                addLinkBtn.addEventListener('click', async () => {
+                    const nome = linkNameInput.value.trim(); let url = linkUrlInput.value.trim();
+                    if (!nome || !url) { showFeedback('Preencha o nome e a URL.'); return; }
+                    if (!url.startsWith('http://') && !url.startsWith('https://')) { url = 'https://' + url; }
+                    try {
+                        await addDoc(linksCollectionRef, { nome, url });
+                        linkNameInput.value = ''; linkUrlInput.value = '';
+                    } catch (e) { console.error("Erro ao adicionar link: ", e); showFeedback("Erro ao salvar link."); }
+                });
+                onSnapshot(linksCollectionRef, (snapshot) => {
+                    const links = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+                    renderLinks(links);
+                });
+            }
+
+            // --- NOVO Módulo: Metas Diárias (Firestore) ---
+            function initMetasApp() {
+                const metasText = document.getElementById('metasText');
+                const saveMetasBtn = document.getElementById('saveMetasBtn');
+                
+                // Carrega as metas salvas
+                onSnapshot(metasDocRef, (docSnap) => {
+                    if (docSnap.exists()) { metasText.value = docSnap.data().content || ''; } 
+                    else { metasText.value = '1. \n2. \n3. '; }
+                }, (error) => { console.error("Erro ao carregar metas: ", error); metasText.value = "Erro ao carregar metas."; });
+
+                // Salva as metas
+                saveMetasBtn.addEventListener('click', async () => {
+                    try {
+                        await setDoc(metasDocRef, { content: metasText.value });
+                        showFeedback('Metas salvas!');
+                    } catch (e) { console.error("Erro ao salvar metas: ", e); showFeedback('Erro ao salvar.'); }
+                });
+            }
+
+            // --- INICIALIZAÇÃO DE TODOS OS MÓDULOS (Firebase) ---
+            initTodoApp();
+            initFlashcardApp();
+            initNotepadApp();
+            initLinksApp();
+            initMetasApp(); // NOVO
+        }
+
+        // --- Módulo: Timer Pomodoro (LOCAL - Não depende do Login) ---
+        function initPomodoroApp() {
+            const timerDisplay = document.getElementById('timerDisplay');
+            const startBtn = document.getElementById('startPomodoroBtn');
+            const resetBtn = document.getElementById('resetPomodoroBtn');
+            const statusDisplay = document.getElementById('pomodoroStatus');
+            
+            const DURATION = 25 * 60;
+            let secondsRemaining = DURATION;
+            let timerInterval = null;
+            let isPaused = true;
+
+            function formatTime(seconds) {
+                const min = Math.floor(seconds / 60); const sec = seconds % 60;
+                return `${String(min).padStart(2, '0')}:${String(sec).padStart(2, '0')}`;
+            }
+            function updateDisplay() { timerDisplay.textContent = formatTime(secondsRemaining); }
+            function startTimer() {
+                isPaused = false; startBtn.textContent = 'Pausar'; statusDisplay.textContent = 'Hora de focar!';
+                timerInterval = setInterval(() => {
+                    secondsRemaining--; updateDisplay();
+                    if (secondsRemaining <= 0) {
+                        clearInterval(timerInterval);
+                        statusDisplay.textContent = 'Pausa! (5 min)';
+                        // A função showFeedback só existe *depois* do login
+                        if (window.showGlobalFeedback) { window.showGlobalFeedback('Pomodoro concluído! Hora de uma pausa.', 5000); }
+                        resetTimer(false);
+                    }
+                }, 1000);
+            }
+            function pauseTimer() {
+                isPaused = true; clearInterval(timerInterval);
+                startBtn.textContent = 'Continuar'; statusDisplay.textContent = 'Pausado';
+            }
+            function resetTimer(showAlert = true) {
+                clearInterval(timerInterval); isPaused = true; secondsRemaining = DURATION;
+                updateDisplay(); startBtn.textContent = 'Iniciar'; statusDisplay.textContent = '\u00A0';
+                if(showAlert && window.showGlobalFeedback) { window.showGlobalFeedback('Timer resetado.'); }
+            }
+            startBtn.addEventListener('click', () => { if (isPaused) { startTimer(); } else { pauseTimer(); } });
+            resetBtn.addEventListener('click', resetTimer);
+            updateDisplay();
+        }
+
+        // --- NOVO Módulo: Calculadora de Média (LOCAL - Não depende do Login) ---
+        function initCalculadoraApp() {
+            const addNotaBtn = document.getElementById('addNotaBtn');
+            const notasContainer = document.getElementById('notasContainer');
+            const calcularMediaBtn = document.getElementById('calcularMediaBtn');
+            const mediaResultado = document.getElementById('mediaResultado');
+            
+            let notaCount = 2; // Começa com 2 campos
+
+            addNotaBtn.addEventListener('click', () => {
+                notaCount++;
+                const div = document.createElement('div');
+                div.className = "flex items-center gap-2";
+                div.innerHTML = `
+                    <label for="nota-${notaCount}" class="text-sm font-medium text-gray-700 w-12">Nota ${notaCount}:</label>
+                    <input type="number" id="nota-${notaCount}" class="nota-input w-full p-2 border border-gray-300 rounded-lg" placeholder="0.0">
+                `;
+                notasContainer.appendChild(div);
+            });
+
+            calcularMediaBtn.addEventListener('click', () => {
+                const inputs = document.querySelectorAll('.nota-input');
+                let total = 0;
+                let count = 0;
+                inputs.forEach(input => {
+                    const value = parseFloat(input.value);
+                    if (!isNaN(value)) {
+                        total += value;
+                        count++;
+                    }
+                });
+
+                if (count > 0) {
+                    const media = total / count;
+                    mediaResultado.textContent = `Sua média é: ${media.toFixed(2)}`;
+                    mediaResultado.classList.remove('text-red-600');
+                    mediaResultado.classList.add('text-green-600');
+                } else {
+                    mediaResultado.textContent = 'Por favor, insira pelo menos uma nota válida.';
+                    mediaResultado.classList.add('text-red-600');
+                    mediaResultado.classList.remove('text-green-600');
+                }
+            });
         }
     </script>
     
     <style>
-        /* Estilos personalizados leves */
-        body {
-            font-family: 'Inter', sans-serif;
-            background-color: #0A0A0A; /* Fundo escuro padrão */
-            color: #F5F5F5; /* Texto claro padrão */
-        }
-        .gradient-text {
-            background: linear-gradient(to right, #3B82F6, #8B5CF6);
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
-        }
-        .card-hover {
-            transition: transform 0.3s ease, box-shadow 0.3s ease;
-        }
-        .card-hover:hover {
-            transform: translateY(-8px);
-            box-shadow: 0 10px 20px rgba(59, 130, 246, 0.1);
-        }
-
-        /* Estilos do Modal */
-        #project-modal-content {
-            max-height: 80vh;
-            overflow-y: auto;
-        }
-
-        /* Estilos do Jogo (Canvas) */
-        #game-canvas {
-            background-color: #000;
-            border-radius: 8px;
-            display: block; /* Remove espaço extra abaixo do canvas */
-            margin: 0 auto; /* Centraliza o canvas */
-        }
-
-        /* Estilos do Mapa de Calor (SVG) */
-        #heatmap-svg {
-            background-color: #1a1a1a;
-            border-radius: 8px;
-        }
+        body { font-family: 'Inter', sans-serif; background-color: #f3f4f6; }
+        .card-scene { perspective: 1000px; }
+        .card-container { width: 100%; height: 100%; position: relative; transition: transform 0.6s; transform-style: preserve-3d; }
+        .card-container.is-flipped { transform: rotateY(180deg); }
+        .card-face { position: absolute; width: 100%; height: 100%; -webkit-backface-visibility: hidden; backface-visibility: hidden; display: flex; align-items: center; justify-content: center; padding: 1.5rem; border-radius: 0.75rem; box-shadow: 0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1); }
+        .card-face-front { background-color: white; color: #1f2937; }
+        .card-face-back { background-color: #4f46e5; color: white; transform: rotateY(180deg); }
+        .nav-link.active { background-color: #4f46e5; color: white; }
+        .task-item.completed span { text-decoration: line-through; color: #6b7280; }
+        #main-app { display: none; } /* Oculto por padrão, JS mostra após login */
     </style>
 </head>
-<body class="min-h-screen antialiased">
+<body class="h-screen overflow-hidden">
 
-    <!-- Wrapper Principal -->
-    <div class="container mx-auto max-w-5xl p-6">
-
-        <!-- Cabeçalho -->
-        <header class="flex justify-between items-center py-4 mb-12">
-            <div class="text-xl font-bold">
-                <span class="gradient-text">MeuProjeto</span>
-            </div>
-            <nav>
-                <a href="#sobre" class="text-gray-400 hover:text-white px-3 py-2 rounded-md">Sobre</a>
-                <a href="#projetos" class="text-gray-400 hover:text-white px-3 py-2 rounded-md">Projetos</a>
-                <a href="#contato" class="text-gray-400 hover:text-white px-3 py-2 rounded-md">Contato</a>
-            </nav>
-        </header>
-
-        <!-- Seção Hero -->
-        <main>
-            <section class="text-center mb-24">
-                <h1 class="text-5xl md:text-6xl font-bold mb-6">
-                    Bem-vindo ao <span class="gradient-text">Projeto 404</span>
-                </h1>
-                <p class="text-xl text-gray-400 mb-8 max-w-2xl mx-auto">
-                    Uma coleção de experimentos e códigos criados para o hackathon BatchHacks.
-                </p>
-                <a href="#projetos" class="bg-brand-accent text-white font-semibold px-8 py-3 rounded-lg shadow-lg shadow-blue-500/30 hover:bg-blue-600 transition-colors duration-300">
-                    Ver Experimentos
-                </a>
-            </section>
-
-            <!-- Seção Sobre o Hackathon -->
-            <section id="sobre" class="mb-24 p-8 bg-gray-900/50 border border-gray-800 rounded-xl">
-                <!-- ... (conteúdo 'sobre' existente) ... -->
-                <h2 class="text-3xl font-bold mb-4">Sobre o Hackathon</h2>
-                <p class="text-gray-400 mb-4">
-                    Este projeto é uma submissão para o <strong class="text-white">BatchHacks</strong>, uma maratona de programação aberta para estudantes.
-                </p>
-                <blockquote class="border-l-4 border-brand-accent pl-4 italic text-gray-300 mb-4">
-                    "Os participantes podem submeter qualquer coisa relacionada a código que desejarem, desde aprendizado de máquina e visualização de dados até jogos."
-                </blockquote>
-                <p class="text-sm text-gray-500">
-                    O hackathon "O 404 Found" é patrocinado e apresentado pela Batch 09.
-                </p>
-            </section>
-
-            <!-- Seção de Projetos (Grid) -->
-            <section id="projetos" class="mb-24">
-                <h2 class="text-3xl font-bold mb-8 text-center">Meus Experimentos</h2>
-                <div class="grid md:grid-cols-2 gap-8">
-                    
-                    <!-- Card de Projeto 1 -->
-                    <div class="bg-gray-900/50 border border-gray-800 p-6 rounded-xl card-hover flex flex-col">
-                        <div class="mb-3">
-                            <span class="text-xs font-semibold px-3 py-1 bg-blue-600/20 text-blue-300 rounded-full">Machine Learning</span>
-                        </div>
-                        <h3 class="text-2xl font-bold mb-3">Analisador de Sentimento</h3>
-                        <p class="text-gray-400 mb-4 flex-grow">
-                            Um modelo *simulado* de ML para classificar o sentimento de textos curtos.
-                        </p>
-                        <!-- BOTÃO para abrir o modal -->
-                        <button onclick="openProjectModal('sentiment')" class="mt-auto w-full text-center font-semibold text-brand-accent hover:underline">
-                            Testar Agora &rarr;
-                        </button>
-                    </div>
-                    
-                    <!-- Card de Projeto 2 -->
-                    <div class="bg-gray-900/50 border border-gray-800 p-6 rounded-xl card-hover flex flex-col">
-                        <div class="mb-3">
-                            <span class="text-xs font-semibold px-3 py-1 bg-purple-600/20 text-purple-300 rounded-full">Visualização com IA</span>
-                        </div>
-                        <h3 class="text-2xl font-bold mb-3">Criador de Gráficos (IA)</h3>
-                        <p class="text-gray-400 mb-4 flex-grow">
-                            Descreva um conjunto de dados e a IA irá gerar um gráfico para você.
-                        </p>
-                        <!-- BOTÃO para abrir o modal -->
-                        <button onclick="openProjectModal('aiChartGenerator')" class="mt-auto w-full text-center font-semibold text-brand-accent hover:underline">
-                            Testar Agora &rarr;
-                        </button>
-                    </div>
-
-                    <!-- Card de Projeto 3 -->
-                    <div class="bg-gray-900/50 border border-gray-800 p-6 rounded-xl card-hover flex flex-col">
-                        <div class="mb-3">
-                            <span class="text-xs font-semibold px-3 py-1 bg-green-600/20 text-green-300 rounded-full">Web Game</span>
-                        </div>
-                        <h3 class="text-2xl font-bold mb-3">Space Invaders HTML5</h3>
-                        <p class="text-gray-400 mb-4 flex-grow">
-                            Um clone básico do clássico jogo de arcade feito com JavaScript puro.
-                        </p>
-                        <!-- BOTÃO para abrir o modal -->
-                        <button onclick="openProjectModal('spaceInvaders')" class="mt-auto w-full text-center font-semibold text-brand-accent hover:underline">
-                            Jogar Agora &rarr;
-                        </button>
-                    </div>
-
-                    <!-- Card "Em Breve" (7 deles para totalizar 10) -->
-                    <!-- Card de Projeto 4 -->
-                    <div class="bg-gray-900/50 border border-gray-800 p-6 rounded-xl card-hover flex flex-col">
-                        <div class="mb-3">
-                            <span class="text-xs font-semibold px-3 py-1 bg-red-600/20 text-red-300 rounded-full">Design com IA</span>
-                        </div>
-                        <h3 class="text-2xl font-bold mb-3">Gerador de Paleta (IA)</h3>
-                        <p class="text-gray-400 mb-4 flex-grow">
-                            Descreva um tema e a IA criará uma paleta de cores (ex: "floresta tropical").
-                        </p>
-                        <button onclick="openProjectModal('paletteGenerator')" class="mt-auto w-full text-center font-semibold text-brand-accent hover:underline">
-                            Gerar Cores &rarr;
-                        </button>
-                    </div>
-
-                    <!-- Card de Projeto 5 -->
-                    <div class="bg-gray-900/50 border border-gray-800 p-6 rounded-xl card-hover flex flex-col">
-                        <div class="mb-3">
-                            <span class="text-xs font-semibold px-3 py-1 bg-yellow-600/20 text-yellow-300 rounded-full">Jogo Clássico</span>
-                        </div>
-                        <h3 class="text-2xl font-bold mb-3">Jogo da Velha (IA)</h3>
-                        <p class="text-gray-400 mb-4 flex-grow">
-                            Tente vencer o computador no clássico jogo da velha.
-                        </p>
-                        <button onclick="openProjectModal('ticTacToe')" class="mt-auto w-full text-center font-semibold text-brand-accent hover:underline">
-                            Jogar Agora &rarr;
-                        </button>
-                    </div>
-
-                    <!-- Card de Projeto 6 -->
-                    <div class="bg-gray-900/50 border border-gray-800 p-6 rounded-xl card-hover flex flex-col">
-                        <div class="mb-3">
-                            <span class="text-xs font-semibold px-3 py-1 bg-purple-600/20 text-purple-300 rounded-full">Visualização (D3)</span>
-                        </div>
-                        <h3 class="text-2xl font-bold mb-3">Simulador de Forças</h3>
-                        <p class="text-gray-400 mb-4 flex-grow">
-                            Uma visualização D3 interativa de nós e links. Arraste os nós.
-                        </p>
-                        <button onclick="openProjectModal('forceGraph')" class="mt-auto w-full text-center font-semibold text-brand-accent hover:underline">
-                            Ver Demo &rarr;
-                        </button>
-                    </div>
-
-                    <!-- Card de Projeto 7 -->
-                    <div class="bg-gray-900/50 border border-gray-800 p-6 rounded-xl card-hover flex flex-col">
-                        <div class="mb-3">
-                            <span class="text-xs font-semibold px-3 py-1 bg-gray-500/20 text-gray-300 rounded-full">Utilitário</span>
-                        </div>
-                        <h3 class="text-2xl font-bold mb-3">Editor Markdown</h3>
-                        <p class="text-gray-400 mb-4 flex-grow">
-                            Escreva em Markdown e veja o HTML renderizado em tempo real.
-                        </p>
-                        <button onclick="openProjectModal('markdownEditor')" class="mt-auto w-full text-center font-semibold text-brand-accent hover:underline">
-                            Abrir Editor &rarr;
-                        </button>
-                    </div>
-
-                    <!-- Card de Projeto 8 -->
-                    <div class="bg-gray-900/50 border border-gray-800 p-6 rounded-xl card-hover flex flex-col">
-                        <div class="mb-3">
-                            <span class="text-xs font-semibold px-3 py-1 bg-gray-500/20 text-gray-300 rounded-full">Utilitário</span>
-                        </div>
-                        <h3 class="text-2xl font-bold mb-3">Lista de Tarefas</h3>
-                        <p class="text-gray-400 mb-4 flex-grow">
-                            Um "To-Do List" simples que salva suas tarefas no navegador.
-                        </p>
-                        <button onclick="openProjectModal('todoList')" class="mt-auto w-full text-center font-semibold text-brand-accent hover:underline">
-                            Abrir Lista &rarr;
-                        </button>
-                    </div>
-
-                    <!-- Card de Projeto 9 (MODIFICADO) -->
-                    <div class="bg-gray-900/50 border border-gray-800 p-6 rounded-xl card-hover flex flex-col">
-                        <div class="mb-3">
-                            <span class="text-xs font-semibold px-3 py-1 bg-blue-600/20 text-blue-300 rounded-full">Escrita Criativa (IA)</span>
-                        </div>
-                        <h3 class="text-2xl font-bold mb-3">Gerador de Histórias (IA)</h3>
-                        <p class="text-gray-400 mb-4 flex-grow">
-                            Dê um tema ou um personagem e a IA escreverá uma pequena história para você.
-                        </p>
-                        <button onclick="openProjectModal('storyGenerator')" class="mt-auto w-full text-center font-semibold text-brand-accent hover:underline">
-                            Começar a Escrever &rarr;
-                        </button>
-                    </div>
-                    
-                    <!-- Card de Projeto 10 -->
-                    <div class="bg-gray-900/50 border border-gray-800 p-6 rounded-xl card-hover flex flex-col">
-                        <div class="mb-3">
-                            <span class="text-xs font-semibold px-3 py-1 bg-green-600/20 text-green-300 rounded-full">Web Game</span>
-                        </div>
-                        <h3 class="text-2xl font-bold mb-3">Jogo Pong</h3>
-                        <p class="text-gray-400 mb-4 flex-grow">
-                            O clássico jogo Pong para dois jogadores (ou um jogador vs. parede).
-                        </p>
-                        <button onclick="openProjectModal('pongGame')" class="mt-auto w-full text-center font-semibold text-brand-accent hover:underline">
-                            Jogar Agora &rarr;
-                        </button>
-                    </div>
-
-                </div>
-            </section>
-        </main>
-
-        <!-- Rodapé -->
-        <footer id="contato" class="text-center py-12 border-t border-gray-800">
-            <!-- ... (conteúdo 'footer' existente) ... -->
-            <p class="text-gray-400">
-                Criado pelo time <span class="font-semibold text-white">Bots Tech</span> para o BatchHacks.
-            </p>
-            <p class="text-gray-500 text-sm mt-2">
-                Apresentado por Batch 09.
-            </p>
-        </footer>
-
-    </div>
-
-    <!-- 
-    ============================================================
-    MODAL DO PROJETO
-    ============================================================
-    -->
-    <div id="project-modal" class="fixed inset-0 bg-black/80 flex items-center justify-center p-4 hidden z-50">
-        <div class="bg-gray-900 border border-gray-700 w-full max-w-3xl rounded-xl shadow-2xl relative">
-            <!-- Botão de Fechar -->
-            <button onclick="closeProjectModal()" class="absolute -top-3 -right-3 w-10 h-10 bg-white text-black rounded-full font-bold text-2xl leading-none shadow-lg z-10 hover:bg-gray-200">
-                &times;
+    <!-- #################### TELA DE LOGIN #################### -->
+    <div id="app-login" class="flex h-screen w-screen items-center justify-center bg-gray-100">
+        <div class="bg-white p-10 rounded-xl shadow-2xl text-center max-w-md">
+            <h1 class="text-4xl font-bold text-indigo-600 mb-4">StudyHub 🚀</h1>
+            <p class="text-lg text-gray-600 mb-8">Sua central de ferramentas para o HackPad 2025.</p>
+            <button id="loginWithGoogleBtn" class="w-full flex items-center justify-center gap-3 bg-white border border-gray-300 text-gray-700 py-3 px-6 rounded-lg font-semibold hover:bg-gray-50 transition shadow-md">
+                <svg class="w-6 h-6" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48"><path fill="#FFC107" d="M43.611 20.083H42V20H24v8h11.303c-1.649 4.657-6.08 8-11.303 8c-6.627 0-12-5.373-12-12s5.373-12 12-12c3.059 0 5.842 1.154 7.961 3.039l5.657-5.657C34.046 6.053 29.268 4 24 4C12.955 4 4 12.955 4 24s8.955 20 20 20s20-8.955 20-20c0-1.341-.138-2.65-.389-3.917z"/><path fill="#FF3D00" d="M6.306 14.691l6.571 4.819C14.655 15.108 18.961 12 24 12c3.059 0 5.842 1.154 7.961 3.039l5.657-5.657C34.046 6.053 29.268 4 24 4C16.318 4 9.656 8.337 6.306 14.691z"/><path fill="#4CAF50" d="M24 44c5.166 0 9.86-1.977 13.409-5.192l-6.19-5.238C29.211 35.091 26.715 36 24 36c-5.202 0-9.619-3.317-11.283-7.946l-6.522 5.025C9.505 39.556 16.227 44 24 44z"/><path fill="#1976D2" d="M43.611 20.083H42V20H24v8h11.303c-.792 2.237-2.231 4.166-4.087 5.571l.001-.001l6.19 5.238C36.971 39.205 44 34 44 24c0-1.341-.138-2.65-.389-3.917z"/></svg>
+                Entrar com Google
             </button>
-            
-            <!-- Conteúdo do Projeto (será preenchido via JS) -->
-            <div id="project-modal-content" class="p-6">
-                <!-- O conteúdo do projeto ativo aparecerá aqui -->
-            </div>
         </div>
     </div>
 
 
-    <!-- 
-    ============================================================
-    JAVASCRIPT DAS APLICAÇÕES
-    ============================================================
-    -->
-    <script>
-        // --- 1. CONTROLE DO MODAL ---
-        
-        const modal = document.getElementById('project-modal');
-        const modalContent = document.getElementById('project-modal-content');
-        
-        // ==========================================================
-        // ATENÇÃO: CONFIGURAÇÃO DE API KEY PARA TESTE LOCAL
-        // ==========================================================
-        // Cole sua chave de API do Google AI Studio aqui,
-        // APENAS para testar no seu VS Code.
-        // NUNCA COMPARTILHE ESSE ARQUIVO COM A CHAVE PREENCHIDA!
-        const LOCAL_API_KEY = "AIzaSyCb56B8KX-aUMDchEw2UfVr4Ze7lBI6kn8"; // <-- COLE SUA CHAVE APIza... AQUI
-        // ==========================================================
-
-
-        // --- Variáveis Globais dos Jogos ---
-        let gameLoopId = null; // Para parar o loop do Space Invaders
-        let pongGameLoopId = null; // Para parar o loop do Pong
-        
-        // Funções para lidar com os listeners do jogo
-        const gameKeydownHandler = (e) => spaceInvadersGame.handleKey(e, true);
-        const gameKeyupHandler = (e) => spaceInvadersGame.handleKey(e, false);
-        // Handler do Pong (movido para o escopo global)
-        const pongGameKeyHandler = (e) => {
-            if (pongGame && pongGame.keys) pongGame.keys[e.code] = e.type === 'keydown';
-        };
-
-
-        function openProjectModal(projectId) {
-            modal.classList.remove('hidden');
-            
-            // --- CÓDIGO FALTANTE (INSERIDO AGORA) ---
-            // Limpa o conteúdo anterior
-            modalContent.innerHTML = ''; 
-            
-            // Remove listeners de jogos anteriores
-            document.removeEventListener('keydown', gameKeydownHandler);
-            document.removeEventListener('keyup', gameKeyupHandler);
-            
-            // Remove listeners do Pong (keydown E keyup)
-            document.removeEventListener('keydown', pongGameKeyHandler);
-            document.removeEventListener('keyup', pongGameKeyHandler);
-            // Para o loop do Pong
-            if (pongGameLoopId) {
-                cancelAnimationFrame(pongGameLoopId);
-                pongGameLoopId = null;
-            }
-            // --- FIM DA CORREÇÃO (PARCIAL) ---
-
-            // --- ESTE É O SWITCH QUE ESTAVA FALTANDO ---
-            switch (projectId) {
-                case 'sentiment':
-                    initSentimentAnalyzer();
-                    break;
-                case 'aiChartGenerator': 
-                    initAiChartGenerator();
-                    break;
-                case 'spaceInvaders':
-                    initSpaceInvaders();
-                    break;
-                // --- NOVOS CASES ---
-                case 'paletteGenerator':
-                    initPaletteGenerator();
-                    break;
-                case 'ticTacToe':
-                    initTicTacToe();
-                    break;
-                case 'forceGraph':
-                    initForceGraph();
-                    break;
-                case 'markdownEditor':
-                    initMarkdownEditor();
-                    break;
-                case 'todoList':
-                    initTodoList();
-                    break;
-                case 'storyGenerator': // MODIFICADO (era 'aiTranslator')
-                    initStoryGenerator();
-                    break;
-                case 'pongGame':
-                    initPongGame();
-                    break;
-            }
-            // --- FIM DO SWITCH FALTANTE ---
-        }
-
-        // --- ESTA FUNÇÃO ESTAVA FALTANDO ---
-        function closeProjectModal() {
-            modal.classList.add('hidden');
-            modalContent.innerHTML = ''; // Limpa o conteúdo
-
-            // Remove listeners de jogos
-            document.removeEventListener('keydown', gameKeydownHandler);
-            document.removeEventListener('keyup', gameKeyupHandler);
-            
-            // --- CORREÇÃO: Parar o loop do Space Invaders ---
-            if (gameLoopId) {
-                cancelAnimationFrame(gameLoopId);
-                gameLoopId = null;
-            }
-            
-            // Remove listeners do Pong (keydown E keyup)
-            document.removeEventListener('keydown', pongGameKeyHandler);
-            document.removeEventListener('keyup', pongGameKeyHandler);
-            // Para o loop do Pong
-            if (pongGameLoopId) {
-                cancelAnimationFrame(pongGameLoopId);
-                pongGameLoopId = null;
-            }
-        }
-
-        // --- 2. PROJETO 1: ANALISADOR DE SENTIMENTO (IA) ---
-        // ESTA FUNÇÃO ESTAVA FALTANDO
-        function initSentimentAnalyzer() {
-            modalContent.innerHTML = `
-                <h2 class="text-2xl font-bold mb-4 gradient-text">Analisador de Sentimento (IA)</h2>
-                <p class="text-gray-400 mb-4">Digite uma frase para a IA (Gemini) classificar o sentimento.</p>
-                <textarea id="sentiment-input" class="w-full h-24 p-3 rounded-lg bg-gray-800 text-white border border-gray-700 focus:border-brand-accent focus:ring-0" placeholder="Ex: Estou muito feliz com este hackathon!"></textarea>
-                <button onclick="analyzeSentiment()" id="sentiment-button" class="mt-4 bg-brand-accent text-white font-semibold px-6 py-2 rounded-lg hover:bg-blue-600 transition-colors">
-                    Analisar
+    <!-- #################### APLICAÇÃO PRINCIPAL (Oculta) #################### -->
+    <div id="main-app" class="flex h-screen overflow-hidden">
+        <!-- Barra Lateral de Navegação -->
+        <nav class="w-64 bg-white shadow-lg p-6 flex flex-col flex-shrink-0">
+            <h1 class="text-3xl font-bold text-indigo-600 mb-8">StudyHub 🚀</h1>
+            <ul class="space-y-3">
+                <li>
+                    <button data-target="app-painel" class="nav-link active w-full text-left flex items-center gap-3 px-4 py-3 rounded-lg font-medium text-gray-700 hover:bg-gray-200 transition">
+                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-6 h-6"><path stroke-linecap="round" stroke-linejoin="round" d="M3.75 6A2.25 2.25 0 016 3.75h12A2.25 2.25 0 0120.25 6v12A2.25 2.25 0 0118 20.25H6A2.25 2.25 0 013.75 18V6zM3.75 12h16.5M12 3.75v16.5" /></svg>
+                        Painel
+                    </button>
+                </li>
+                <li>
+                    <button data-target="app-tarefas" class="nav-link w-full text-left flex items-center gap-3 px-4 py-3 rounded-lg font-medium text-gray-700 hover:bg-gray-200 transition">
+                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-6 h-6"><path stroke-linecap="round" stroke-linejoin="round" d="M8.25 6.75h12M8.25 12h12m-12 5.25h12M3.75 6.75h.007v.008H3.75V6.75zm.375 0a.375.375 0 11-.75 0 .375.375 0 01.75 0zM3.75 12h.007v.008H3.75V12zm.375 0a.375.375 0 11-.75 0 .375.375 0 01.75 0zm-.375 5.25h.007v.008H3.75v-.008zm.375 0a.375.375 0 11-.75 0 .375.375 0 01.75 0z" /></svg>
+                        Tarefas
+                    </button>
+                </li>
+                <!-- NOVO: Botão Metas -->
+                <li>
+                    <button data-target="app-metas" class="nav-link w-full text-left flex items-center gap-3 px-4 py-3 rounded-lg font-medium text-gray-700 hover:bg-gray-200 transition">
+                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-6 h-6"><path stroke-linecap="round" stroke-linejoin="round" d="M16.5 18.75h-9m9 0a3 3 0 013 3h-15a3 3 0 013-3m9 0v-3.375c0-.621-.503-1.125-1.125-1.125h-6.75c-.621 0-1.125.503-1.125 1.125V18.75m9 0h-9" /></svg>
+                        Metas Diárias
+                    </button>
+                </li>
+                <li>
+                    <button data-target="app-flashcards" class="nav-link w-full text-left flex items-center gap-3 px-4 py-3 rounded-lg font-medium text-gray-700 hover:bg-gray-200 transition">
+                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-6 h-6"><path stroke-linecap="round" stroke-linejoin="round" d="M16.5 8.25V6a2.25 2.25 0 00-2.25-2.25H6A2.25 2.25 0 003.75 6v8.25A2.25 2.25 0 006 16.5h2.25m8.25-8.25H18a2.25 2.25 0 012.25 2.25V18A2.25 2.25 0 0118 20.25h-7.5A2.25 2.25 0 018.25 18v-1.5m8.25-8.25h-6.75a.75.75 0 00-.75.75v6.75a.75.75 0 00.75.75h6.75a.75.75 0 00.75-.75v-6.75a.75.75 0 00-.75-.75z" /></svg>
+                        Flashcards
+                    </button>
+                </li>
+                <li>
+                    <button data-target="app-pomodoro" class="nav-link w-full text-left flex items-center gap-3 px-4 py-3 rounded-lg font-medium text-gray-700 hover:bg-gray-200 transition">
+                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-6 h-6"><path stroke-linecap="round" stroke-linejoin="round" d="M12 6v6h4.5m4.5 0a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+                        Timer Pomodoro
+                    </button>
+                </li>
+                <li>
+                    <button data-target="app-notas" class="nav-link w-full text-left flex items-center gap-3 px-4 py-3 rounded-lg font-medium text-gray-700 hover:bg-gray-200 transition">
+                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-6 h-6"><path stroke-linecap="round" stroke-linejoin="round" d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L10.582 16.07a4.5 4.5 0 01-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 011.13-1.897l8.932-8.931zm0 0L19.5 7.125M18 14v4.75A2.25 2.25 0 0115.75 21H5.25A2.25 2.25 0 013 18.75V8.25A2.25 2.25 0 015.25 6H10" /></svg>
+                        Bloco de Notas
+                    </button>
+                </li>
+                <li>
+                    <button data-target="app-links" class="nav-link w-full text-left flex items-center gap-3 px-4 py-3 rounded-lg font-medium text-gray-700 hover:bg-gray-200 transition">
+                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-6 h-6"><path stroke-linecap="round" stroke-linejoin="round" d="M13.19 8.688a4.5 4.5 0 011.242 7.244l-4.5 4.5a4.5 4.5 0 01-6.364-6.364l1.757-1.757m13.35-.622l1.757-1.757a4.5 4.5 0 00-6.364-6.364l-4.5 4.5a4.5 4.5 0 001.242 7.244" /></svg>
+                        Links Rápidos
+                    </button>
+                </li>
+                <!-- NOVO: Botão Calculadora -->
+                <li>
+                    <button data-target="app-calculadora" class="nav-link w-full text-left flex items-center gap-3 px-4 py-3 rounded-lg font-medium text-gray-700 hover:bg-gray-200 transition">
+                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-6 h-6"><path stroke-linecap="round" stroke-linejoin="round" d="M15.75 15.75l-2.489-2.489m0 0a3.375 3.375 0 10-4.773-4.773 3.375 3.375 0 004.774 4.774zM21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+                        Calculadora Média
+                    </button>
+                </li>
+            </ul>
+            <!-- Botão de Logout -->
+            <div class="mt-auto">
+                <p id="userEmail" class="text-xs text-gray-500 mb-2 truncate" title="Usuário logado"></p>
+                <button id="logoutBtn" class="w-full text-left flex items-center gap-3 px-4 py-3 rounded-lg font-medium text-red-600 hover:bg-red-100 transition">
+                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-6 h-6"><path stroke-linecap="round" stroke-linejoin="round" d="M15.75 9V5.25A2.25 2.25 0 0013.5 3h-6a2.25 2.25 0 00-2.25 2.25v13.5A2.25 2.25 0 007.5 21h6a2.25 2.25 0 002.25-2.25V15m3 0l3-3m0 0l-3-3m3 3H9" /></svg>
+                    Sair
                 </button>
-                <div id="sentiment-loading" class="hidden mt-4 text-center text-gray-400">
-                    <div class="inline-block animate-spin rounded-full h-6 w-6 border-b-2 border-brand-accent"></div>
-                    <p class="mt-2">Analisando...</p>
+            </div>
+        </nav>
+
+        <!-- Conteúdo Principal -->
+        <main class="flex-1 p-8 overflow-auto">
+            
+            <!-- #1: Painel (Boas-vindas) -->
+            <div id="app-painel" class="app-view">
+                <h2 class="text-4xl font-bold text-gray-800 mb-6">Bem-vindo(a) ao seu StudyHub!</h2>
+                <p class="text-xl text-gray-600 mb-8">Esta é a sua central de ferramentas para o HackPad 2025.</p>
+                <div class="bg-white p-6 rounded-lg shadow-md">
+                    <h3 class="text-2xl font-semibold mb-4">Como usar:</h3>
+                    <ul class="list-disc list-inside space-y-2 text-gray-700">
+                        <li>Use o menu à esquerda para navegar entre as ferramentas.</li>
+                        <li><strong class="text-indigo-600">Tarefas:</strong> Adicione, remova e marque suas tarefas.</li>
+                        <li><strong class="text-indigo-600">Flashcards:</strong> Crie e estude seus cards (frente e verso).</li>
+                        <li><strong class="text-indigo-600">Timer Pomodoro:</strong> Inicie um timer de 25 minutos para focar.</li>
+                        <li><strong class="text-indigo-600">Bloco de Notas:</strong> Anote rapidamente qualquer coisa.</li>
+                    </ul>
+                    <p class="mt-6 text-sm text-gray-500 font-medium">
+                        Seus dados são salvos na nuvem, em tempo real.
+                    </p>
                 </div>
-                <div id="sentiment-result" class="mt-4 p-4 rounded-lg text-lg font-semibold hidden"></div>
-            `;
-        }
+            </div>
 
-        async function analyzeSentiment() {
-            const text = document.getElementById('sentiment-input').value;
-            const resultDiv = document.getElementById('sentiment-result');
-            const loadingDiv = document.getElementById('sentiment-loading');
-            const button = document.getElementById('sentiment-button');
-
-            if (!text) {
-                resultDiv.textContent = 'Por favor, digite uma frase.';
-                resultDiv.className = 'mt-4 p-4 rounded-lg text-lg font-semibold bg-red-600/20 text-red-300';
-                resultDiv.classList.remove('hidden');
-                return;
-            }
-
-            loadingDiv.classList.remove('hidden');
-            resultDiv.classList.add('hidden');
-            button.disabled = true;
-
-            const apiKey = LOCAL_API_KEY; 
-            
-            // --- NOVA VERIFICAÇÃO ---
-            if (!apiKey) {
-                resultDiv.textContent = 'Erro: API Key não configurada. Adicione sua chave à variável LOCAL_API_KEY no código.';
-                resultDiv.className = 'mt-4 p-4 rounded-lg text-lg font-semibold bg-red-600/20 text-red-300';
-                resultDiv.classList.remove('hidden');
-                loadingDiv.classList.add('hidden');
-                button.disabled = false;
-                return;
-            }
-            // --- FIM DA VERIFICAÇÃO ---
-            
-            const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent?key=${apiKey}`;
-            
-            // Instrução para a IA responder APENAS com uma palavra
-            const systemPrompt = "Você é um analisador de sentimento. Responda APENAS com uma das três palavras: 'Positivo', 'Negativo' ou 'Neutro'.";
-
-            const payload = {
-                contents: [{ parts: [{ text: text }] }],
-                systemInstruction: {
-                    parts: [{ text: systemPrompt }]
-                },
-            };
-
-            try {
-                const response = await fetch(apiUrl, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify(payload)
-                });
-
-                if (!response.ok) {
-                    throw new Error(`Erro da API: ${response.statusText}`);
-                }
-
-                const result = await response.json();
-                const sentiment = result.candidates[0].content.parts[0].text.trim().toLowerCase();
-
-                resultDiv.classList.remove('hidden', 'bg-green-600/20', 'text-green-300', 'bg-red-600/20', 'text-red-300', 'bg-gray-600/20', 'text-gray-300');
-
-                if (sentiment.includes('positivo')) {
-                    resultDiv.textContent = 'Sentimento: Positivo 😄';
-                    resultDiv.classList.add('bg-green-600/20', 'text-green-300');
-                } else if (sentiment.includes('negativo')) {
-                    resultDiv.textContent = 'Sentimento: Negativo 😞';
-                    resultDiv.classList.add('bg-red-600/20', 'text-red-300');
-                } else {
-                    resultDiv.textContent = 'Sentimento: Neutro 😐';
-                    resultDiv.classList.add('bg-gray-600/20', 'text-gray-300');
-                }
-
-            } catch (error) {
-                console.error("Erro ao analisar sentimento:", error);
-                resultDiv.textContent = 'Erro ao analisar. Tente novamente.';
-                resultDiv.className = 'mt-4 p-4 rounded-lg text-lg font-semibold bg-red-600/20 text-red-300';
-            } finally {
-                loadingDiv.classList.add('hidden');
-                resultDiv.classList.remove('hidden');
-                button.disabled = false;
-            }
-        }
-
-        // --- 3. PROJETO 2: CRIADOR DE GRÁFICOS (IA) --- (Substituindo o Gráfico de Bolhas)
-
-        function initAiChartGenerator() {
-            modalContent.innerHTML = `
-                <h2 class="text-2xl font-bold mb-4 gradient-text">Criador de Gráficos com IA</h2>
-                <p class="text-gray-400 mb-4">Descreva os dados que você quer visualizar. A IA vai criar um gráfico (barra vertical, barra horizontal ou bolhas).</p>
-                <textarea id="chart-prompt" class="w-full h-24 p-3 rounded-lg bg-gray-800 text-white border border-gray-700 focus:border-brand-accent focus:ring-0" placeholder="Ex: 'Crie um gráfico de barras verticais mostrando as vendas: Maçãs (50), Bananas (80), Laranjas (30)'"></textarea>
-                <button onclick="generateChart()" id="chart-button" class="mt-4 bg-brand-accent text-white font-semibold px-6 py-2 rounded-lg hover:bg-blue-600 transition-colors">
-                    Gerar Gráfico
-                </button>
-                <div id="chart-loading" class="hidden mt-4 text-center text-gray-400">
-                    <div class="inline-block animate-spin rounded-full h-6 w-6 border-b-2 border-brand-accent"></div>
-                    <p class="mt-2">Gerando visualização...</p>
+            <!-- #2: Lista de Tarefas -->
+            <div id="app-tarefas" class="app-view hidden max-w-2xl mx-auto">
+                <h2 class="text-3xl font-bold text-gray-800 mb-6">Lista de Tarefas</h2>
+                <div class="bg-white p-6 rounded-lg shadow-lg">
+                    <div class="flex gap-4 mb-4">
+                        <input type="text" id="todoInput" class="flex-grow p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:outline-none" placeholder="Ex: Entregar projeto de..." />
+                        <button id="addTodoBtn" class="bg-indigo-600 text-white py-3 px-5 rounded-lg font-semibold hover:bg-indigo-700 transition shadow-md">Adicionar</button>
+                    </div>
+                    <ul id="todoList" class="space-y-3"></ul>
                 </div>
-                <div id="chart-error" class="mt-4 p-4 rounded-lg text-lg font-semibold hidden"></div>
-                <div id="chart-container" class="w-full min-h-[450px] mt-6">
-                    <!-- O gráfico gerado pela IA aparecerá aqui -->
+            </div>
+
+            <!-- #3: Metas Diárias (NOVO) -->
+            <div id="app-metas" class="app-view hidden max-w-2xl mx-auto">
+                <h2 class="text-3xl font-bold text-gray-800 mb-6">Metas Diárias</h2>
+                <div class="bg-white p-6 rounded-lg shadow-lg">
+                    <p class="text-gray-600 mb-4">Quais são suas 3 prioridades para hoje?</p>
+                    <textarea id="metasText" class="w-full h-48 p-4 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:outline-none" placeholder="1. ...&#10;2. ...&#10;3. ..."></textarea>
+                    <button id="saveMetasBtn" class="mt-4 w-full bg-indigo-600 text-white py-3 px-6 rounded-lg font-semibold hover:bg-indigo-700 transition shadow-md">
+                        Salvar Metas
+                    </button>
                 </div>
-            `;
-        }
-
-        async function generateChart() {
-            const prompt = document.getElementById('chart-prompt').value;
-            const errorDiv = document.getElementById('chart-error');
-            const loadingDiv = document.getElementById('chart-loading');
-            const button = document.getElementById('chart-button');
-            const chartContainer = document.getElementById('chart-container');
-
-            if (!prompt) {
-                errorDiv.textContent = 'Por favor, digite uma descrição para o gráfico.';
-                errorDiv.className = 'mt-4 p-4 rounded-lg text-lg font-semibold bg-red-600/20 text-red-300';
-                errorDiv.classList.remove('hidden');
-                return;
-            }
-
-            loadingDiv.classList.remove('hidden');
-            errorDiv.classList.add('hidden');
-            chartContainer.innerHTML = ''; // Limpa o gráfico anterior
-            button.disabled = true;
-
-            const apiKey = LOCAL_API_KEY; 
+            </div>
             
-            // --- NOVA VERIFICAÇÃO ---
-            if (!apiKey) {
-                errorDiv.textContent = 'Erro: API Key não configurada. Adicione sua chave à variável LOCAL_API_KEY no código.';
-                errorDiv.className = 'mt-4 p-4 rounded-lg text-lg font-semibold bg-red-600/20 text-red-300';
-                errorDiv.classList.remove('hidden');
-                loadingDiv.classList.add('hidden');
-                button.disabled = false;
-                return;
-            }
-            // --- FIM DA VERIFICAÇÃO ---
+            <!-- #4: Flashcards -->
+            <div id="app-flashcards" class="app-view hidden">
+                <h2 class="text-3xl font-bold text-gray-800 mb-6">Módulo de Flashcards</h2>
+                <main class="w-full max-w-5xl mx-auto grid grid-cols-1 md:grid-cols-2 gap-8">
+                    <section class="bg-white p-6 rounded-xl shadow-lg">
+                        <h2 class="text-2xl font-semibold text-gray-900 mb-4">Criar Novo Card</h2>
+                        <div class="space-y-4">
+                            <div>
+                                <label for="frente" class="block text-sm font-medium text-gray-700 mb-1">Frente (Pergunta):</label>
+                                <textarea id="frente" rows="4" class="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:outline-none" placeholder="Ex: Qual a capital do Brasil?"></textarea>
+                            </div>
+                            <div>
+                                <label for="verso" class="block text-sm font-medium text-gray-700 mb-1">Verso (Resposta):</label>
+                                <textarea id="verso" rows="4" class="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:outline-none" placeholder="Ex: Brasília"></textarea>
+                            </div>
+                            <button id="addCardBtn" class="w-full bg-indigo-600 text-white py-3 px-6 rounded-lg font-semibold hover:bg-indigo-700 transition shadow-md">Adicionar Card</button>
+                            <button id="clearCardsBtn" class="w-full bg-red-500 text-white py-2 px-4 rounded-lg font-medium hover:bg-red-600 transition shadow-sm">Limpar Todos os Cards</button>
+                        </div>
+                    </section>
+                    <section class="flex flex-col">
+                        <h2 class="text-2xl font-semibold text-gray-900 mb-4 text-center md:text-left">Estudar Cards</h2>
+                        <div class="card-scene w-full h-64 md:h-80 mb-4">
+                            <div id="cardContainer" class="card-container">
+                                <div id="cardFrente" class="card-face card-face-front text-2xl font-semibold text-center">Crie um card para começar!</div>
+                                <div id="cardVerso" class="card-face card-face-back text-xl font-medium text-center"></div>
+                            </div>
+                        </div>
+                        <p id="cardCounter" class="text-center text-gray-600 font-medium mb-4">Card 0 / 0</p>
+                        <div class="flex justify-center gap-3 mb-3">
+                            <button id="prevBtn" title="Anterior" class="bg-white p-3 rounded-full shadow-md hover:bg-gray-100 transition disabled:opacity-50 disabled:cursor-not-allowed"><svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="w-6 h-6 text-gray-700"><path stroke-linecap="round" stroke-linejoin="round" d="M15.75 19.5L8.25 12l7.5-7.5" /></svg></button>
+                            <button id="flipBtn" class="bg-indigo-600 text-white py-3 px-8 rounded-lg font-semibold hover:bg-indigo-700 transition shadow-md flex-grow disabled:opacity-50 disabled:cursor-not-allowed">Virar Card</button>
+                            <button id="nextBtn" title="Próximo" class="bg-white p-3 rounded-full shadow-md hover:bg-gray-100 transition disabled:opacity-50 disabled:cursor-not-allowed"><svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="w-6 h-6 text-gray-700"><path stroke-linecap="round" stroke-linejoin="round" d="M8.25 4.5l7.5 7.5-7.5 7.5" /></svg></button>
+                        </div>
+                        <button id="shuffleBtn" class="w-full bg-gray-700 text-white py-2 px-4 rounded-lg font-medium hover:bg-gray-800 transition shadow-sm disabled:opacity-50 disabled:cursor-not-allowed">Embaralhar Cards</button>
+                    </section>
+                </main>
+            </div>
 
-            const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent?key=${apiKey}`;
-
-            // 1. O Schema JSON que a IA DEVE retornar
-            const responseSchema = {
-                "type": "OBJECT",
-                "properties": {
-                    "chartType": { 
-                        "type": "STRING", 
-                        "enum": ["bar", "barh", "bubble"],
-                        "description": "Use 'bar' para vertical, 'barh' para horizontal, 'bubble' para bolhas."
-                    },
-                    "title": { "type": "STRING", "description": "Um título para o gráfico." },
-                    "data": {
-                        "type": "ARRAY",
-                        "items": {
-                            "type": "OBJECT",
-                            "properties": {
-                                "label": { "type": "STRING" },
-                                "value": { "type": "NUMBER" }
-                            }
-                        }
-                    }
-                },
-                "required": ["chartType", "title", "data"]
-            };
-
-            // 2. Instruções para a IA
-            const systemPrompt = `Você é um assistente de visualização de dados. O usuário fornecerá uma descrição em linguagem natural.
-Sua tarefa é:
-1. Analisar o pedido.
-2. Se os dados não forem fornecidos, invente dados de exemplo apropriados (pelo menos 4-5 pontos de dados).
-3. Mapear os tipos de gráfico: 'gráfico vertical' ou 'gráfico de barras' -> 'bar'. 'gráfico horizontal' -> 'barh'. 'gráfico de bolhas' -> 'bubble'.
-4. Formatar a saída estritamente de acordo com o JSON schema fornecido.`;
-
-            // 3. Payload da API
-            const payload = {
-                contents: [{ parts: [{ text: prompt }] }],
-                systemInstruction: { parts: [{ text: systemPrompt }] },
-                generationConfig: {
-                    responseMimeType: "application/json",
-                    responseSchema: responseSchema
-                }
-            };
-
-            try {
-                const response = await fetch(apiUrl, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify(payload)
-                });
-
-                if (!response.ok) {
-                    throw new Error(`Erro da API: ${response.statusText}`);
-                }
-
-                const result = await response.json();
-                
-                if (!result.candidates || !result.candidates[0].content.parts[0].text) {
-                     throw new Error('Resposta da IA inválida.');
-                }
-
-                const jsonText = result.candidates[0].content.parts[0].text;
-                const chartData = JSON.parse(jsonText);
-
-                // 4. Desenhar o gráfico com os dados da IA
-                drawAiChart(chartData);
-
-            } catch (error) {
-                console.error("Erro ao gerar gráfico:", error);
-                errorDiv.textContent = `Erro ao gerar gráfico: ${error.message}. Tente novamente.`;
-                errorDiv.className = 'mt-4 p-4 rounded-lg text-lg font-semibold bg-red-600/20 text-red-300';
-                errorDiv.classList.remove('hidden');
-            } finally {
-                loadingDiv.classList.add('hidden');
-                button.disabled = false;
-            }
-        }
-
-        // Função "roteadora" que decide qual gráfico desenhar
-        function drawAiChart(chartData) {
-            const container = document.getElementById('chart-container');
-            container.innerHTML = ''; // Limpa de novo por segurança
-
-            // Adiciona o título
-            const title = document.createElement('h3');
-            title.className = 'text-xl font-semibold text-white text-center mb-4';
-            title.textContent = chartData.title;
-            container.appendChild(title);
-            
-            // Adiciona o SVG
-            const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
-            svg.id = "ai-chart-svg";
-            container.appendChild(svg);
-
-            // Chama a função D3 correta
-            switch (chartData.chartType) {
-                case 'bar':
-                    drawBarChart(chartData.data, false); // false = vertical
-                    break;
-                case 'barh':
-                    drawBarChart(chartData.data, true); // true = horizontal
-                    break;
-                case 'bubble':
-                    drawBubbleChart_AI(chartData.data);
-                    break;
-                default:
-                    container.innerHTML = `<p class="text-red-400">Tipo de gráfico desconhecido: ${chartData.chartType}</p>`;
-            }
-        }
-        
-        // --- 10. PROJETO 9: TRADUTOR COM IA (IA) ---
-        // ESTA SEÇÃO FOI REMOVIDA E SUBSTITUÍDA ABAIXO
-        
-        // --- 10. PROJETO 9: GERADOR DE HISTÓRIAS (NOVO) ---
-        
-        function initStoryGenerator() {
-             modalContent.innerHTML = `
-                <h2 class="text-2xl font-bold mb-4 gradient-text">Gerador de Histórias (IA)</h2>
-                <p class="text-gray-400 mb-4">Dê um prompt para a IA (ex: "um cavaleiro que tem medo de cavalos").</p>
-                
-                <textarea id="story-prompt" class="w-full h-24 p-3 rounded-lg bg-gray-800 text-white border border-gray-700 focus:border-brand-accent focus:ring-0" placeholder="Digite seu prompt criativo aqui..."></textarea>
-
-                <button onclick="generateStory()" id="story-button" class="mt-4 bg-brand-accent text-white font-semibold px-6 py-2 rounded-lg hover:bg-blue-600 transition-colors">
-                    Gerar História
-                </button>
-                
-                <div id="story-loading" class="hidden mt-4 text-center text-gray-400">
-                    <div class="inline-block animate-spin rounded-full h-6 w-6 border-b-2 border-brand-accent"></div>
-                    <p class="mt-2">Escrevendo...</p>
+            <!-- #5: Timer Pomodoro -->
+            <div id="app-pomodoro" class="app-view hidden text-center max-w-md mx-auto">
+                <h2 class="text-3xl font-bold text-gray-800 mb-6">Timer Pomodoro</h2>
+                <div class="bg-white p-8 rounded-full shadow-2xl w-80 h-80 flex flex-col items-center justify-center mx-auto">
+                    <h3 class="text-gray-500 text-lg font-medium">Tempo de Foco</h3>
+                    <h1 id="timerDisplay" class="text-8xl font-extrabold text-gray-900 my-4">25:00</h1>
+                    <p id="pomodoroStatus" class="text-lg text-gray-600 font-semibold">&nbsp;</p>
                 </div>
-                <div id="story-error" class="mt-4 p-4 rounded-lg text-lg font-semibold hidden"></div>
-                
-                <div id="story-output" class="w-full mt-6 p-4 rounded-lg bg-gray-950 border border-gray-700 min-h-[200px] text-gray-300 whitespace-pre-line hidden">
-                    <!-- A história gerada aparecerá aqui -->
+                <div class="mt-8 flex justify-center gap-4">
+                    <button id="startPomodoroBtn" class="bg-indigo-600 text-white text-xl py-4 px-10 rounded-lg font-bold hover:bg-indigo-700 transition shadow-lg">Iniciar</button>
+                    <button id="resetPomodoroBtn" class="bg-gray-200 text-gray-800 text-xl py-4 px-10 rounded-lg font-bold hover:bg-gray-300 transition shadow-lg">Resetar</button>
                 </div>
-            `;
-        }
-        
-        async function generateStory() {
-            const prompt = document.getElementById('story-prompt').value;
-            const errorDiv = document.getElementById('story-error');
-            const loadingDiv = document.getElementById('story-loading');
-            const button = document.getElementById('story-button');
-            const outputArea = document.getElementById('story-output');
+            </div>
 
-            if (!prompt) {
-                errorDiv.textContent = 'Por favor, digite um prompt para a história.';
-                errorDiv.className = 'mt-4 p-4 rounded-lg text-lg font-semibold bg-red-600/20 text-red-300';
-                errorDiv.classList.remove('hidden');
-                return;
-            }
-
-            loadingDiv.classList.remove('hidden');
-            errorDiv.classList.add('hidden');
-            outputArea.classList.add('hidden');
-            outputArea.innerHTML = '';
-            button.disabled = true;
-
-            const apiKey = LOCAL_API_KEY; 
-            
-            if (!apiKey) {
-                errorDiv.textContent = 'Erro: API Key não configurada. Adicione sua chave à variável LOCAL_API_KEY no código.';
-                errorDiv.className = 'mt-4 p-4 rounded-lg text-lg font-semibold bg-red-600/20 text-red-300';
-                errorDiv.classList.remove('hidden');
-                loadingDiv.classList.add('hidden');
-                button.disabled = false;
-                return;
-            }
-
-            const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent?key=${apiKey}`;
-
-            const systemPrompt = `Você é um escritor criativo. O usuário fornecerá um prompt. 
-Escreva uma pequena história (cerca de 3-4 parágrafos) baseada nesse prompt.
-Responda APENAS com a história, sem introduções ou comentários.`;
-            
-             const payload = {
-                contents: [{ parts: [{ text: prompt }] }],
-                systemInstruction: {
-                    parts: [{ text: systemPrompt }]
-                },
-            };
-
-            try {
-                const response = await fetch(apiUrl, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify(payload)
-                });
-                
-                if (!response.ok) {
-                    throw new Error(`Erro da API: ${response.status} ${response.statusText}`);
-                }
-
-                const result = await response.json();
-                
-                if (result.candidates && result.candidates[0]?.content?.parts[0]?.text) {
-                    let storyText = result.candidates[0].content.parts[0].text;
-                    // Converte quebras de linha (\n) em tags <br> para formatação HTML
-                    storyText = storyText.replace(/\n/g, '<br>');
-                    
-                    outputArea.innerHTML = storyText;
-                    outputArea.classList.remove('hidden');
-                } else {
-                    throw new Error('Resposta da API inválida.');
-                }
-
-            } catch (error) {
-                console.error("Erro ao gerar história:", error);
-                errorDiv.textContent = `Erro ao gerar história: ${error.message}.`;
-                errorDiv.className = 'mt-4 p-4 rounded-lg text-lg font-semibold bg-red-600/20 text-red-300';
-                errorDiv.classList.remove('hidden');
-            } finally {
-                loadingDiv.classList.add('hidden');
-                button.disabled = false;
-            }
-        }
-
-        // --- 11. PROJETO 10: JOGO PONG ---
-        
-        let pongGame = {};
-        // IDs dos loops e handlers agora são globais
-        // let pongGameLoopId = null; 
-        // const pongGameKeyHandler = (e) => { ... }; 
-
-        function initPongGame() {
-            modalContent.innerHTML = `
-                <h2 class="text-2xl font-bold mb-4 gradient-text">Jogo Pong</h2>
-                <div class="flex justify-center items-center mb-2 text-2xl font-bold">
-                    <p class="text-white"><span id="pong-score1">0</span> - <span id="pong-score2">0</span></p>
+            <!-- #6: Bloco de Notas -->
+            <div id="app-notas" class="app-view hidden max-w-3xl mx-auto">
+                <h2 class="text-3xl font-bold text-gray-800 mb-6">Bloco de Notas Rápido</h2>
+                <div class="bg-white p-6 rounded-lg shadow-lg">
+                    <textarea id="notepadText" class="w-full h-96 p-4 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:outline-none" placeholder="Suas anotações..."></textarea>
+                    <button id="saveNoteBtn" class="mt-4 w-full bg-indigo-600 text-white py-3 px-6 rounded-lg font-semibold hover:bg-indigo-700 transition shadow-md">Salvar Anotação</button>
                 </div>
-                <canvas id="pong-canvas" width="600" height="400"></canvas>
-                <p class="text-gray-500 text-sm text-center mt-2">Jogador 1 (Esquerda): W (cima) e S (baixo).</p>
-                 <p class="text-gray-500 text-sm text-center">Jogador 2 (Direita): Seta Cima (↑) e Seta Baixo (↓).</p>
-            `;
-            
-            const canvas = document.getElementById('pong-canvas');
-            const ctx = canvas.getContext('2d');
-            const score1El = document.getElementById('pong-score1');
-            const score2El = document.getElementById('pong-score2');
+            </div>
 
-            pongGame = {
-                canvas, ctx, score1El, score2El,
-                width: canvas.width,
-                height: canvas.height,
-                keys: {},
-                ball: { x: canvas.width / 2, y: canvas.height / 2, r: 8, dx: 5, dy: 3 },
-                p1: { x: 10, y: canvas.height / 2 - 40, w: 15, h: 80, speed: 7, score: 0 },
-                p2: { x: canvas.width - 25, y: canvas.height / 2 - 40, w: 15, h: 80, speed: 7, score: 0 },
-                
-                resetBall: (direction) => {
-                    pongGame.ball.x = pongGame.width / 2;
-                    pongGame.ball.y = pongGame.height / 2;
-                    pongGame.ball.dx = 5 * direction; // Bola vai para quem marcou
-                    pongGame.ball.dy = (Math.random() * 6) - 3; // Ângulo aleatório
-                },
-                
-                draw: () => {
-                    const { ctx, width, height, ball, p1, p2 } = pongGame;
-                    // Fundo
-                    ctx.fillStyle = '#000';
-                    ctx.fillRect(0, 0, width, height);
-                    
-                    // Linha do meio
-                    ctx.fillStyle = '#333';
-                    ctx.fillRect(width / 2 - 1, 0, 2, height);
-                    
-                    // Bola
-                    ctx.fillStyle = '#fff';
-                    ctx.beginPath();
-                    ctx.arc(ball.x, ball.y, ball.r, 0, Math.PI * 2);
-                    ctx.fill();
-                    
-                    // Raquete 1 (Esquerda)
-                    ctx.fillStyle = '#3B82F6';
-                    ctx.fillRect(p1.x, p1.y, p1.w, p1.h);
-                    
-                    // Raquete 2 (Direita)
-                    ctx.fillStyle = '#10B981';
-                    ctx.fillRect(p2.x, p2.y, p2.w, p2.h);
-                },
-                
-                update: () => {
-                    const { keys, ball, p1, p2, width, height } = pongGame;
-                    
-                    // Mover Raquete 1 (W/S)
-                    if (keys['KeyW'] && p1.y > 0) p1.y -= p1.speed;
-                    if (keys['KeyS'] && p1.y < height - p1.h) p1.y += p1.speed;
-                    
-                    // Mover Raquete 2 (Cima/Baixo)
-                    if (keys['ArrowUp'] && p2.y > 0) p2.y -= p2.speed;
-                    if (keys['ArrowDown'] && p2.y < height - p2.h) p2.y += p2.speed;
-                    
-                    // Mover Bola
-                    ball.x += ball.dx;
-                    ball.y += ball.dy;
-                    
-                    // Colisão com paredes (Cima/Baixo)
-                    if (ball.y - ball.r < 0) {
-                        ball.y = ball.r;
-                        ball.dy *= -1;
-                    }
-                    if (ball.y + ball.r > height) {
-                        ball.y = height - ball.r;
-                        ball.dy *= -1;
-                    }
-                    
-                    // Colisão com Raquete 1 (Esquerda)
-                    if (ball.x - ball.r < p1.x + p1.w && 
-                        ball.y > p1.y && ball.y < p1.y + p1.h) {
-                        ball.x = p1.x + p1.w + ball.r;
-                        ball.dx *= -1.1; // Aumenta velocidade
-                    }
-                    
-                    // Colisão com Raquete 2 (Direita)
-                    if (ball.x + ball.r > p2.x &&
-                        ball.y > p2.y && ball.y < p2.y + p2.h) {
-                        ball.x = p2.x - ball.r;
-                        ball.dx *= -1.1; // Aumenta velocidade
-                    }
-                    
-                    // Ponto (Bola saiu)
-                    if (ball.x - ball.r < 0) { // Ponto para P2
-                        p2.score++;
-                        pongGame.resetBall(1);
-                    }
-                    if (ball.x + ball.r > width) { // Ponto para P1
-                        p1.score++;
-                        pongGame.resetBall(-1);
-                    }
-                    
-                    // Atualiza UI
-                    score1El.textContent = p1.score;
-                    score2El.textContent = p2.score;
-                },
-                
-                loop: () => {
-                    pongGame.update();
-                    pongGame.draw();
-                    pongGameLoopId = requestAnimationFrame(pongGame.loop);
-                }
-            };
-            
-            // Adiciona listeners
-            document.addEventListener('keydown', pongGameKeyHandler);
-            document.addEventListener('keyup', pongGameKeyHandler);
-            
-            // Inicia o jogo
-            pongGame.resetBall(1);
-            pongGame.loop();
-        }
-        
-    </script>
+            <!-- #7: Links Rápidos -->
+            <div id="app-links" class="app-view hidden max-w-2xl mx-auto">
+                <h2 class="text-3xl font-bold text-gray-800 mb-6">Links Rápidos</h2>
+                <div class="bg-white p-6 rounded-lg shadow-lg">
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
+                        <input type="text" id="linkNameInput" class="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:outline-none" placeholder="Nome do site (ex: Google)" />
+                        <input type="text" id="linkUrlInput" class="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:outline-none" placeholder="URL (https://...)" />
+                    </div>
+                    <button id="addLinkBtn" class="w-full bg-indigo-600 text-white py-3 px-5 rounded-lg font-semibold hover:bg-indigo-700 transition shadow-md">Adicionar Link</button>
+                    <ul id="linksList" class="space-y-3 mt-6"></ul>
+                </div>
+            </div>
 
+            <!-- #8: Calculadora de Média (NOVO) -->
+            <div id="app-calculadora" class="app-view hidden max-w-md mx-auto">
+                <h2 class="text-3xl font-bold text-gray-800 mb-6">Calculadora de Média</h2>
+                <div class="bg-white p-6 rounded-lg shadow-lg">
+                    <div id="notasContainer" class="space-y-3 mb-4">
+                        <div class="flex items-center gap-2">
+                            <label for="nota-1" class="text-sm font-medium text-gray-700 w-12">Nota 1:</label>
+                            <input type="number" id="nota-1" class="nota-input w-full p-2 border border-gray-300 rounded-lg" placeholder="0.0">
+                        </div>
+                        <div class="flex items-center gap-2">
+                            <label for="nota-2" class="text-sm font-medium text-gray-700 w-12">Nota 2:</label>
+                            <input type="number" id="nota-2" class="nota-input w-full p-2 border border-gray-300 rounded-lg" placeholder="0.0">
+                        </div>
+                    </div>
+                    <button id="addNotaBtn" class="w-full bg-gray-200 text-gray-800 py-2 px-4 rounded-lg font-semibold hover:bg-gray-300 transition mb-4">
+                        Adicionar outra nota
+                    </button>
+                    <button id="calcularMediaBtn" class="w-full bg-indigo-600 text-white py-3 px-5 rounded-lg font-semibold hover:bg-indigo-700 transition shadow-md">
+                        Calcular Média
+                    </button>
+                    <p id="mediaResultado" class="text-center text-2xl font-bold mt-6 text-gray-800"></p>
+                </div>
+            </div>
+
+        </main>
+    </div>
+
+    <!-- Modal de Feedback (Oculto por padrão) -->
+    <div id="feedbackModal" class="hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+        <div class="bg-white p-8 rounded-lg shadow-xl text-center">
+            <p id="feedbackMessage" class="text-xl font-medium text-gray-800"></p>
+        </div>
+    </div>
+
+    <!-- Modal de Confirmação -->
+    <div id="confirmModal" class="hidden fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center p-4 z-50">
+        <div class="bg-white p-8 rounded-lg shadow-xl text-center max-w-sm">
+            <p id="confirmMessage" class="text-lg font-medium text-gray-900 mb-6">Tem certeza?</p>
+            <div class="flex justify-center gap-4">
+                <button id="confirmBtnYes" class="bg-red-600 text-white py-2 px-8 rounded-lg font-semibold hover:bg-red-700 transition">Sim</button>
+                <button id="confirmBtnNo" class="bg-gray-200 text-gray-800 py-2 px-8 rounded-lg font-semibold hover:bg-gray-300 transition">Não</button>
+            </div>
+        </div>
+    </div>
 </body>
 </html>
