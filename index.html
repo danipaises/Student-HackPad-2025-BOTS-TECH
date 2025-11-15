@@ -191,8 +191,8 @@
             const linksCollectionRef = collection(db, `artifacts/${appId}/users/${userId}/links`);
             const metasDocRef = doc(db, `artifacts/${appId}/users/${userId}/metas/diarias`); 
             const habitosCollectionRef = collection(db, `artifacts/${appId}/users/${userId}/habitos`);
-            const revisoesCollectionRef = collection(db, `artifacts/${appId}/users/${userId}/revisoes`); // NOVO
-            const eventosCollectionRef = collection(db, `artifacts/${appId}/users/${userId}/eventos`); // NOVO
+            // const revisoesCollectionRef = collection(db, `artifacts/${appId}/users/${userId}/revisoes`); // Removido
+            const eventosCollectionRef = collection(db, `artifacts/${appId}/users/${userId}/eventos`);
 
             // --- Módulo: Lista de Tarefas (Firestore) ---
             function initTodoApp() {
@@ -294,57 +294,63 @@
                 });
             }
 
-            // --- NOVO Módulo: Revisões Periódicas (Firestore) ---
-            function initRevisoesApp() {
-                const revisaoInput = document.getElementById('revisaoInput');
-                const addRevisaoBtn = document.getElementById('addRevisaoBtn');
-                const revisoesList = document.getElementById('revisoesList');
+            // --- Módulo: Criador de Tabela (LOCAL) ---
+            function initTabelaApp() {
+                const tableRowsInput = document.getElementById('tableRowsInput');
+                const tableColsInput = document.getElementById('tableColsInput');
+                const createTableBtn = document.getElementById('createTableBtn');
+                const tableContainer = document.getElementById('tableContainer');
 
-                function renderRevisoes(revisoes) {
-                    revisoesList.innerHTML = ''; 
-                    if (revisoes.length === 0) {
-                        revisoesList.innerHTML = '<p class="text-gray-500 text-center">Nenhuma revisão agendada.</p>';
+                createTableBtn.addEventListener('click', () => {
+                    const rows = parseInt(tableRowsInput.value) || 3;
+                    const cols = parseInt(tableColsInput.value) || 3;
+                    
+                    if (rows > 50 || cols > 20) {
+                        showFeedback("Limite de 50 linhas e 20 colunas.");
                         return;
                     }
-                    revisoes.forEach((revisao) => {
-                        const li = document.createElement('li');
-                        li.className = `task-item flex items-center justify-between p-3 rounded-lg border transition-colors ${revisao.completed ? 'completed' : 'bg-gray-50'}`;
-                        li.innerHTML = `
-                            <span class="flex-grow cursor-pointer">${revisao.text}</span>
-                            <button data-id="${revisao.id}" class="delete-revisao-btn text-red-500 hover:text-red-700 p-1 rounded-full">
-                                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="w-5 h-5"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>
-                            </button>
-                        `;
-                        li.querySelector('span').addEventListener('click', async () => {
-                            const revisaoDocRef = doc(db, `artifacts/${appId}/users/${userId}/revisoes`, revisao.id);
-                            await updateDoc(revisaoDocRef, { completed: !revisao.completed });
-                        });
-                        li.querySelector('.delete-revisao-btn').addEventListener('click', async () => {
-                            const revisaoDocRef = doc(db, `artifacts/${appId}/users/${userId}/revisoes`, revisao.id);
-                            await deleteDoc(revisaoDocRef);
-                        });
-                        revisoesList.appendChild(li);
-                    });
-                }
 
-                addRevisaoBtn.addEventListener('click', async () => {
-                    const text = revisaoInput.value.trim();
-                    if (text) {
-                        try {
-                            await addDoc(revisoesCollectionRef, { text: text, completed: false });
-                            revisaoInput.value = '';
-                        } catch (e) { console.error("Erro ao adicionar revisão: ", e); showFeedback("Erro ao salvar revisão."); }
+                    tableContainer.innerHTML = ''; // Limpa a tabela anterior
+                    
+                    const table = document.createElement('table');
+                    table.className = "min-w-full divide-y divide-gray-300 border border-gray-300";
+                    
+                    // Cabeçalho
+                    const thead = document.createElement('thead');
+                    thead.className = "bg-gray-100";
+                    const trHead = document.createElement('tr');
+                    for (let j = 0; j < cols; j++) {
+                        const th = document.createElement('th');
+                        th.className = "p-3 border border-gray-300 text-left text-sm font-semibold text-gray-900";
+                        th.setAttribute('contenteditable', 'true'); // Célula editável
+                        th.textContent = `Cabeçalho ${j + 1}`;
+                        trHead.appendChild(th);
                     }
-                });
-                revisaoInput.addEventListener('keypress', (e) => { if (e.key === 'Enter') { addRevisaoBtn.click(); } });
-                
-                onSnapshot(revisoesCollectionRef, (snapshot) => {
-                    const revisoes = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-                    renderRevisoes(revisoes);
+                    thead.appendChild(trHead);
+                    table.appendChild(thead);
+                    
+                    // Corpo
+                    const tbody = document.createElement('tbody');
+                    tbody.className = "divide-y divide-gray-200 bg-white";
+                    for (let i = 0; i < rows; i++) {
+                        const tr = document.createElement('tr');
+                        for (let j = 0; j < cols; j++) {
+                            const td = document.createElement('td');
+                            td.className = "p-3 border border-gray-300 text-sm text-gray-700";
+                            td.setAttribute('contenteditable', 'true'); // Célula editável
+                            td.textContent = `Dado ${i + 1}-${j + 1}`;
+                            tr.appendChild(td);
+                        }
+                        tbody.appendChild(tr);
+                    }
+                    table.appendChild(tbody);
+                    
+                    tableContainer.appendChild(table);
+                    showFeedback("Tabela criada! Clique nas células para editar.");
                 });
             }
             
-            // --- NOVO Módulo: Calendário de Eventos (Firestore) ---
+            // --- Módulo: Calendário de Eventos (Firestore) ---
             function initCalendarioApp() {
                 const eventoInput = document.getElementById('eventoInput');
                 const eventoDateInput = document.getElementById('eventoDateInput');
@@ -689,8 +695,9 @@
             initPomodoroApp(); 
             initCalculadoraApp(); 
             initMusicaApp();
-            initRevisoesApp(); // NOVO
-            initCalendarioApp(); // NOVO
+            // initRevisoesApp(); // Removido
+            initTabelaApp(); // NOVO
+            initCalendarioApp();
         }
     </script>
     
@@ -727,6 +734,21 @@
         }
         .pomodoro-active {
             animation: pulse-foco 2s infinite;
+        }
+        
+        /* --- Estilos da Tabela Gerada --- */
+        #tableContainer table {
+            table-layout: auto;
+            width: 100%;
+        }
+        #tableContainer th, #tableContainer td {
+            min-width: 100px; /* Garante que a célula tenha um tamanho mínimo para clicar */
+        }
+        #tableContainer th[contenteditable="true"]:focus,
+        #tableContainer td[contenteditable="true"]:focus {
+            background-color: #fef9c3; /* Tailwind yellow-100 */
+            outline: 2px solid #4f46e5; /* Tailwind indigo-600 */
+            box-shadow: none;
         }
     </style>
 </head>
@@ -775,18 +797,17 @@
                         Hábitos
                     </button>
                 </li>
-                <!-- NOVO: Botão Calendário -->
                 <li>
                     <button data-target="app-calendario" class="nav-link w-full text-left flex items-center gap-3 px-4 py-3 rounded-lg font-medium text-gray-700 hover:bg-gray-200 transition">
                         <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-6 h-6"><path stroke-linecap="round" stroke-linejoin="round" d="M6.75 3v2.25M17.25 3v2.25M3 18.75V7.5a2.25 2.25 0 012.25-2.25h13.5A2.25 2.25 0 0121 7.5v11.25m-18 0A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75m-18 0v-7.5A2.25 2.25 0 015.25 9h13.5A2.25 2.25 0 0121 11.25v7.5" /></svg>
                         Calendário
                     </button>
                 </li>
-                <!-- NOVO: Botão Revisões -->
+                <!-- NOVO: Botão Criador de Tabela -->
                 <li>
-                    <button data-target="app-revisoes" class="nav-link w-full text-left flex items-center gap-3 px-4 py-3 rounded-lg font-medium text-gray-700 hover:bg-gray-200 transition">
-                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-6 h-6"><path stroke-linecap="round" stroke-linejoin="round" d="M16.023 9.348h4.992v-.001M2.985 19.644v-4.992m0 0h4.992m-4.993 0l3.181 3.183a8.25 8.25 0 0013.803-3.7M4.031 9.865a8.25 8.25 0 0113.803-3.7l3.181 3.182m0-4.991v4.99" /></svg>
-                        Revisões
+                    <button data-target="app-tabela" class="nav-link w-full text-left flex items-center gap-3 px-4 py-3 rounded-lg font-medium text-gray-700 hover:bg-gray-200 transition">
+                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-6 h-6"><path stroke-linecap="round" stroke-linejoin="round" d="M9 4.5v15m6-15v15m-10.5-9h15m-15 6h15M3 7.5h18M3 16.5h18" /></svg>
+                        Criador de Tabela
                     </button>
                 </li>
                 <li>
@@ -857,7 +878,7 @@
                             </div>
                         </div>
                     </button>
-                    <!-- Card Calendário (NOVO) -->
+                    <!-- Card Calendário -->
                     <button data-target="app-calendario" class="nav-link bg-white p-6 rounded-lg shadow-lg text-left hover:shadow-xl hover:-translate-y-1 transition-all">
                         <div class="flex items-center gap-4">
                             <div class="bg-indigo-100 text-indigo-600 p-3 rounded-lg">
@@ -869,15 +890,15 @@
                             </div>
                         </div>
                     </button>
-                    <!-- Card Revisões (NOVO) -->
-                    <button data-target="app-revisoes" class="nav-link bg-white p-6 rounded-lg shadow-lg text-left hover:shadow-xl hover:-translate-y-1 transition-all">
+                    <!-- Card Criador de Tabela (NOVO) -->
+                    <button data-target="app-tabela" class="nav-link bg-white p-6 rounded-lg shadow-lg text-left hover:shadow-xl hover:-translate-y-1 transition-all">
                         <div class="flex items-center gap-4">
                             <div class="bg-indigo-100 text-indigo-600 p-3 rounded-lg">
-                                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-6 h-6"><path stroke-linecap="round" stroke-linejoin="round" d="M16.023 9.348h4.992v-.001M2.985 19.644v-4.992m0 0h4.992m-4.993 0l3.181 3.183a8.25 8.25 0 0013.803-3.7M4.031 9.865a8.25 8.25 0 0113.803-3.7l3.181 3.182m0-4.991v4.99" /></svg>
+                                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-6 h-6"><path stroke-linecap="round" stroke-linejoin="round" d="M9 4.5v15m6-15v15m-10.5-9h15m-15 6h15M3 7.5h18M3 16.5h18" /></svg>
                             </div>
                             <div>
-                                <h3 class="text-xl font-semibold text-gray-800">Revisões</h3>
-                                <p class="text-gray-500">Rastreie o que revisar.</p>
+                                <h3 class="text-xl font-semibold text-gray-800">Criador de Tabela</h3>
+                                <p class="text-gray-500">Crie tabelas editáveis.</p>
                             </div>
                         </div>
                     </button>
@@ -993,7 +1014,7 @@
                 </div>
             </div>
 
-            <!-- #5: Calendário de Eventos (NOVO) -->
+            <!-- #5: Calendário de Eventos -->
             <div id="app-calendario" class="app-view hidden max-w-2xl mx-auto">
                 <h2 class="text-3xl font-bold text-gray-800 mb-6">Calendário de Eventos</h2>
                 <div class="bg-white p-6 rounded-lg shadow-lg">
@@ -1006,16 +1027,29 @@
                 </div>
             </div>
             
-            <!-- #6: Revisões Periódicas (NOVO) -->
-            <div id="app-revisoes" class="app-view hidden max-w-2xl mx-auto">
-                <h2 class="text-3xl font-bold text-gray-800 mb-6">Revisões Periódicas</h2>
-                <div class="bg-white p-6 rounded-lg shadow-lg">
-                    <div class="flex gap-4 mb-4">
-                        <input type="text" id="revisaoInput" class="flex-grow p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:outline-none" placeholder="Ex: Revisar Tabela Periódica" />
-                        <button id="addRevisaoBtn" class="bg-indigo-600 text-white py-3 px-5 rounded-lg font-semibold hover:bg-indigo-700 transition shadow-md">Adicionar Revisão</button>
+            <!-- #6: Criador de Tabela (NOVO) -->
+            <div id="app-tabela" class="app-view hidden max-w-4xl mx-auto">
+                <h2 class="text-3xl font-bold text-gray-800 mb-6">Criador de Tabela</h2>
+                <div class="bg-white p-6 rounded-lg shadow-lg mb-6">
+                    <div class="flex flex-wrap items-center gap-4">
+                        <div class="flex items-center gap-2">
+                            <label for="tableRowsInput" class="font-medium text-gray-700">Linhas:</label>
+                            <input type="number" id="tableRowsInput" class="w-20 p-2 border border-gray-300 rounded-lg" value="3" min="1" max="50">
+                        </div>
+                        <div class="flex items-center gap-2">
+                            <label for="tableColsInput" class="font-medium text-gray-700">Colunas:</label>
+                            <input type="number" id="tableColsInput" class="w-20 p-2 border border-gray-300 rounded-lg" value="3" min="1" max="20">
+                        </div>
+                        <button id="createTableBtn" class="bg-indigo-600 text-white py-2 px-5 rounded-lg font-semibold hover:bg-indigo-700 transition shadow-md flex-grow sm:flex-grow-0">
+                            Gerar Tabela
+                        </button>
                     </div>
-                    <ul id="revisoesList" class="space-y-3"></ul>
-                     <p class="text-xs text-gray-500 mt-4 text-center">Clique na revisão para marcar/desmarcar.</p>
+                    <p class="text-sm text-gray-500 mt-3">Clique em qualquer célula da tabela gerada para editar o conteúdo.</p>
+                </div>
+                
+                <div id="tableContainer" class="overflow-x-auto bg-white rounded-lg shadow-lg">
+                    <!-- A tabela gerada aparecerá aqui -->
+                    <p class="p-6 text-gray-500">Defina as linhas e colunas e clique em "Gerar Tabela" para começar.</p>
                 </div>
             </div>
             
@@ -1066,7 +1100,7 @@
                 <div id="pomodoroCircle" class="bg-white p-8 rounded-full shadow-2xl w-80 h-80 flex flex-col items-center justify-center mx-auto transition-shadow">
                     <h3 class="text-gray-500 text-lg font-medium">Tempo de Foco</h3>
                     <h1 id="timerDisplay" class="text-8xl font-extrabold text-gray-900 my-4">25:00</h1>
-                    <p id="pomodoroStatus" class="text-lg text-gray-600 font-semibold">&nbsp;</p>
+                    <p id="pomodoroStatus" class="text-lg text-gray-600 font-semibold">&nbsp;</Vp>
                 </div>
                 <div class="mt-8 flex justify-center gap-4">
                     <button id="startPomodoroBtn" class="bg-indigo-600 text-white text-xl py-4 px-10 rounded-lg font-bold hover:bg-indigo-700 transition shadow-lg">Iniciar</button>
