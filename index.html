@@ -53,49 +53,6 @@
         // só são buscados DEPOIS que o DOM estiver carregado.
         let mainAppDiv, loginDiv, loginBtn, logoutBtn, userEmailDisplay;
 
-        // --- NOVO: Função de API Gemini com Backoff Exponencial ---
-        /**
-         * Faz uma chamada fetch para a API Gemini com retentativa e backoff.
-         * @param {string} apiUrl O endpoint da API.
-         * @param {object} payload O corpo da requisição.
-         * @param {number} maxRetries Máximo de tentativas.
-         * @returns {Promise<object>} A resposta da API em JSON.
-         */
-        async function fetchWithBackoff(apiUrl, payload, maxRetries = 5) {
-            let attempt = 0;
-            let delay = 1000; // 1 segundo inicial
-
-            while (attempt < maxRetries) {
-                try {
-                    const response = await fetch(apiUrl, {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify(payload)
-                    });
-
-                    if (response.ok) {
-                        return await response.json();
-                    } else if (response.status === 429 || response.status >= 500) {
-                        // 429 (Too Many Requests) ou erro de servidor
-                        console.warn(`Tentativa ${attempt + 1} falhou com status ${response.status}. Tentando novamente em ${delay}ms...`);
-                    } else {
-                        // Outro erro (ex: 400 Bad Request), não tentar novamente
-                        console.error(`Erro ${response.status}: ${response.statusText}`);
-                        throw new Error(`Erro de API: ${response.statusText}`);
-                    }
-                } catch (error) {
-                    // Erro de rede
-                    console.warn(`Tentativa ${attempt + 1} falhou com erro de rede. Tentando novamente em ${delay}ms...`);
-                }
-
-                await new Promise(resolve => setTimeout(resolve, delay));
-                delay *= 2; // Dobra o tempo de espera
-                attempt++;
-            }
-            throw new Error('Falha ao chamar a API Gemini após múltiplas tentativas.');
-        }
-
-
         // Função principal de inicialização
         function initApp() {
             // Adiciona listeners aos botões de login/logout
@@ -159,7 +116,6 @@
 
         
         // Esta função wrapper será chamada APÓS o login
-        // --- CORREÇÃO: Agora ela inicializa TODAS as ferramentas ---
         function initComponents(db, auth, appId, userId) {
             
             // --- Lógica de Navegação (SPA) ---
@@ -172,7 +128,12 @@
                     appViews.forEach(view => view.classList.add('hidden'));
                     document.getElementById(targetId).classList.remove('hidden');
                     navLinks.forEach(nav => nav.classList.remove('active'));
-                    link.classList.add('active');
+                    // Encontra o link de navegação que corresponde ao target e o ativa
+                    // Isso corrige o clique nos cards do painel
+                    const linkToActivate = document.querySelector(`.nav-link[data-target="${targetId}"]`);
+                    if (linkToActivate) {
+                        linkToActivate.classList.add('active');
+                    }
                 });
             });
 
@@ -229,7 +190,9 @@
             const notepadDocRef = doc(db, `artifacts/${appId}/users/${userId}/blocoDeNotas/unicaNota`);
             const linksCollectionRef = collection(db, `artifacts/${appId}/users/${userId}/links`);
             const metasDocRef = doc(db, `artifacts/${appId}/users/${userId}/metas/diarias`); 
-            const habitosCollectionRef = collection(db, `artifacts/${appId}/users/${userId}/habitos`); // NOVO
+            const habitosCollectionRef = collection(db, `artifacts/${appId}/users/${userId}/habitos`);
+            const revisoesCollectionRef = collection(db, `artifacts/${appId}/users/${userId}/revisoes`); // NOVO
+            const eventosCollectionRef = collection(db, `artifacts/${appId}/users/${userId}/eventos`); // NOVO
 
             // --- Módulo: Lista de Tarefas (Firestore) ---
             function initTodoApp() {
@@ -245,7 +208,7 @@
                     }
                     tasks.forEach((task) => {
                         const li = document.createElement('li');
-                        li.className = `task-item flex items-center justify-between bg-gray-50 p-3 rounded-lg border ${task.completed ? 'completed' : ''}`;
+                        li.className = `task-item flex items-center justify-between p-3 rounded-lg border transition-colors ${task.completed ? 'completed' : 'bg-gray-50'}`;
                         li.innerHTML = `
                             <span class="flex-grow cursor-pointer">${task.text}</span>
                             <button data-id="${task.id}" class="delete-task-btn text-red-500 hover:text-red-700 p-1 rounded-full">
@@ -275,14 +238,13 @@
                 });
                 todoInput.addEventListener('keypress', (e) => { if (e.key === 'Enter') { addTodoBtn.click(); } });
                 
-                // Listener do Firestore para carregar dados
                 onSnapshot(todoCollectionRef, (snapshot) => {
                     const tasks = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
                     renderTasks(tasks);
                 });
             }
             
-            // --- NOVO Módulo: Rastreador de Hábitos (Firestore) ---
+            // --- Módulo: Rastreador de Hábitos (Firestore) ---
             function initHabitosApp() {
                 const habitInput = document.getElementById('habitInput');
                 const addHabitBtn = document.getElementById('addHabitBtn');
@@ -296,7 +258,7 @@
                     }
                     habitos.forEach((habit) => {
                         const li = document.createElement('li');
-                        li.className = `task-item flex items-center justify-between bg-gray-50 p-3 rounded-lg border ${habit.completed ? 'completed' : ''}`;
+                        li.className = `task-item flex items-center justify-between p-3 rounded-lg border transition-colors ${habit.completed ? 'completed' : 'bg-gray-50'}`;
                         li.innerHTML = `
                             <span class="flex-grow cursor-pointer">${habit.text}</span>
                             <button data-id="${habit.id}" class="delete-habit-btn text-red-500 hover:text-red-700 p-1 rounded-full">
@@ -332,6 +294,116 @@
                 });
             }
 
+            // --- NOVO Módulo: Revisões Periódicas (Firestore) ---
+            function initRevisoesApp() {
+                const revisaoInput = document.getElementById('revisaoInput');
+                const addRevisaoBtn = document.getElementById('addRevisaoBtn');
+                const revisoesList = document.getElementById('revisoesList');
+
+                function renderRevisoes(revisoes) {
+                    revisoesList.innerHTML = ''; 
+                    if (revisoes.length === 0) {
+                        revisoesList.innerHTML = '<p class="text-gray-500 text-center">Nenhuma revisão agendada.</p>';
+                        return;
+                    }
+                    revisoes.forEach((revisao) => {
+                        const li = document.createElement('li');
+                        li.className = `task-item flex items-center justify-between p-3 rounded-lg border transition-colors ${revisao.completed ? 'completed' : 'bg-gray-50'}`;
+                        li.innerHTML = `
+                            <span class="flex-grow cursor-pointer">${revisao.text}</span>
+                            <button data-id="${revisao.id}" class="delete-revisao-btn text-red-500 hover:text-red-700 p-1 rounded-full">
+                                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="w-5 h-5"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>
+                            </button>
+                        `;
+                        li.querySelector('span').addEventListener('click', async () => {
+                            const revisaoDocRef = doc(db, `artifacts/${appId}/users/${userId}/revisoes`, revisao.id);
+                            await updateDoc(revisaoDocRef, { completed: !revisao.completed });
+                        });
+                        li.querySelector('.delete-revisao-btn').addEventListener('click', async () => {
+                            const revisaoDocRef = doc(db, `artifacts/${appId}/users/${userId}/revisoes`, revisao.id);
+                            await deleteDoc(revisaoDocRef);
+                        });
+                        revisoesList.appendChild(li);
+                    });
+                }
+
+                addRevisaoBtn.addEventListener('click', async () => {
+                    const text = revisaoInput.value.trim();
+                    if (text) {
+                        try {
+                            await addDoc(revisoesCollectionRef, { text: text, completed: false });
+                            revisaoInput.value = '';
+                        } catch (e) { console.error("Erro ao adicionar revisão: ", e); showFeedback("Erro ao salvar revisão."); }
+                    }
+                });
+                revisaoInput.addEventListener('keypress', (e) => { if (e.key === 'Enter') { addRevisaoBtn.click(); } });
+                
+                onSnapshot(revisoesCollectionRef, (snapshot) => {
+                    const revisoes = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+                    renderRevisoes(revisoes);
+                });
+            }
+            
+            // --- NOVO Módulo: Calendário de Eventos (Firestore) ---
+            function initCalendarioApp() {
+                const eventoInput = document.getElementById('eventoInput');
+                const eventoDateInput = document.getElementById('eventoDateInput');
+                const addEventoBtn = document.getElementById('addEventoBtn');
+                const eventosList = document.getElementById('eventosList');
+
+                function renderEventos(eventos) {
+                    eventosList.innerHTML = '';
+                    if (eventos.length === 0) {
+                        eventosList.innerHTML = '<p class="text-gray-500 text-center">Nenhum evento agendado.</p>';
+                        return;
+                    }
+                    eventos.forEach(evento => {
+                        const li = document.createElement('li');
+                        li.className = 'flex items-center justify-between bg-gray-50 p-3 rounded-lg border';
+                        
+                        // Formata a data. Adiciona 'UTC' para evitar problemas de fuso horário com input type="date"
+                        const dataFormatada = new Date(evento.date + 'T00:00:00-03:00').toLocaleDateString('pt-BR', { timeZone: 'America/Sao_Paulo', day: '2-digit', month: '2-digit', year: 'numeric' });
+                        
+                        li.innerHTML = `
+                            <div>
+                                <span class="font-medium text-indigo-700">${dataFormatada}</span>
+                                <p class="text-gray-900">${evento.text}</p>
+                            </div>
+                            <button data-id="${evento.id}" class="delete-evento-btn text-red-500 hover:text-red-700 p-1 rounded-full flex-shrink-0 ml-2">
+                                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="w-5 h-5"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>
+                            </button>
+                        `;
+                        li.querySelector('.delete-evento-btn').addEventListener('click', async () => {
+                            const eventoDocRef = doc(db, `artifacts/${appId}/users/${userId}/eventos`, evento.id);
+                            await deleteDoc(eventoDocRef);
+                        });
+                        eventosList.appendChild(li);
+                    });
+                }
+
+                addEventoBtn.addEventListener('click', async () => {
+                    const text = eventoInput.value.trim();
+                    const date = eventoDateInput.value; // Formato YYYY-MM-DD
+                    if (!text || !date) {
+                        showFeedback('Preencha o nome do evento e a data.');
+                        return;
+                    }
+                    try {
+                        await addDoc(eventosCollectionRef, { text, date });
+                        eventoInput.value = '';
+                        eventoDateInput.value = '';
+                    } catch (e) { console.error("Erro ao adicionar evento: ", e); showFeedback("Erro ao salvar evento."); }
+                });
+
+                onSnapshot(eventosCollectionRef, (snapshot) => {
+                    const eventos = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+                    // Ordena por data antes de renderizar
+                    eventos.sort((a, b) => new Date(a.date) - new Date(b.date));
+                    renderEventos(eventos);
+                });
+            }
+
+
             // --- Módulo: Flashcards (Firestore) ---
             function initFlashcardApp() {
                 const frenteInput = document.getElementById('frente');
@@ -346,11 +418,6 @@
                 const flipBtn = document.getElementById('flipBtn');
                 const nextBtn = document.getElementById('nextBtn');
                 const shuffleBtn = document.getElementById('shuffleBtn');
-                
-                // --- NOVO: Elementos da IA ---
-                const aiThemeInput = document.getElementById('aiThemeInput');
-                const aiGenerateBtn = document.getElementById('aiGenerateBtn');
-                const aiLoading = document.getElementById('aiLoading');
 
                 let cards = [];
                 let currentCardIndex = 0;
@@ -429,83 +496,6 @@
                     if (currentCardIndex >= cards.length) { currentCardIndex = 0; }
                     updateCardView();
                 });
-                
-                // --- NOVO: Lógica do Gerador de IA ---
-                aiGenerateBtn.addEventListener('click', async () => {
-                    const theme = aiThemeInput.value.trim();
-                    if (!theme) {
-                        showFeedback("Por favor, insira um tema.");
-                        return;
-                    }
-
-                    // Mostra o loading e desabilita o botão
-                    aiLoading.classList.remove('hidden');
-                    aiGenerateBtn.disabled = true;
-                    aiGenerateBtn.textContent = 'Gerando...';
-
-                    const apiKey = "AIzaSyCb56B8KX-aUMDchEw2UfVr4Ze7lBI6kn8"; // API Key do usuário
-                    const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent?key=${apiKey}`;
-
-                    const systemPrompt = `Você é um assistente de estudos. Sua tarefa é gerar 5 flashcards (pergunta e resposta) sobre um tema.
-                    Responda APENAS com um array de objetos JSON. Cada objeto deve ter duas chaves: "frente" (para a pergunta) e "verso" (para a resposta).
-                    Não inclua \`\`\`json ou qualquer outro texto fora do array.`;
-                    
-                    const userQuery = `Tema: ${theme}`;
-
-                    const payload = {
-                        contents: [{ parts: [{ text: userQuery }] }],
-                        systemInstruction: {
-                            parts: [{ text: systemPrompt }]
-                        },
-                        generationConfig: {
-                            responseMimeType: "application/json",
-                            responseSchema: {
-                                type: "ARRAY",
-                                items: {
-                                    type: "OBJECT",
-                                    properties: {
-                                        "frente": { "type": "STRING" },
-                                        "verso": { "type": "STRING" }
-                                    },
-                                    required: ["frente", "verso"]
-                                }
-                            }
-                        }
-                    };
-
-                    try {
-                        const result = await fetchWithBackoff(apiUrl, payload);
-                        
-                        if (result.candidates && result.candidates[0].content && result.candidates[0].content.parts[0].text) {
-                            const jsonText = result.candidates[0].content.parts[0].text;
-                            const generatedCards = JSON.parse(jsonText);
-
-                            // Salva os cards no Firebase
-                            const savePromises = generatedCards.map(card => {
-                                return addDoc(flashcardsCollectionRef, { 
-                                    frente: card.frente, 
-                                    verso: card.verso 
-                                });
-                            });
-                            
-                            await Promise.all(savePromises);
-                            
-                            showFeedback(`${generatedCards.length} cards gerados e salvos!`);
-                            aiThemeInput.value = ''; // Limpa o input
-                        } else {
-                            throw new Error("Resposta da IA em formato inesperado.");
-                        }
-
-                    } catch (error) {
-                        console.error("Erro ao gerar cards com IA:", error);
-                        showFeedback("Erro ao gerar cards. Tente novamente.");
-                    } finally {
-                        // Esconde o loading e reabilita o botão
-                        aiLoading.classList.add('hidden');
-                        aiGenerateBtn.disabled = false;
-                        aiGenerateBtn.textContent = 'Gerar';
-                    }
-                });
             }
 
             // --- Módulo: Bloco de Notas (Firestore) ---
@@ -578,13 +568,11 @@
                 const metasText = document.getElementById('metasText');
                 const saveMetasBtn = document.getElementById('saveMetasBtn');
                 
-                // Carrega as metas salvas
                 onSnapshot(metasDocRef, (docSnap) => {
                     if (docSnap.exists()) { metasText.value = docSnap.data().content || ''; } 
                     else { metasText.value = '1. \n2. \n3. '; }
                 }, (error) => { console.error("Erro ao carregar metas: ", error); metasText.value = "Erro ao carregar metas."; });
 
-                // Salva as metas
                 saveMetasBtn.addEventListener('click', async () => {
                     try {
                         await setDoc(metasDocRef, { content: metasText.value });
@@ -593,12 +581,13 @@
                 });
             }
 
-            // --- Módulo: Timer Pomodoro (LOCAL - MOVIDO PARA CÁ) ---
+            // --- Módulo: Timer Pomodoro (LOCAL) ---
             function initPomodoroApp() {
                 const timerDisplay = document.getElementById('timerDisplay');
                 const startBtn = document.getElementById('startPomodoroBtn');
                 const resetBtn = document.getElementById('resetPomodoroBtn');
                 const statusDisplay = document.getElementById('pomodoroStatus');
+                const pomodoroCircle = document.getElementById('pomodoroCircle');
                 
                 const DURATION = 25 * 60;
                 let secondsRemaining = DURATION;
@@ -612,6 +601,7 @@
                 function updateDisplay() { timerDisplay.textContent = formatTime(secondsRemaining); }
                 function startTimer() {
                     isPaused = false; startBtn.textContent = 'Pausar'; statusDisplay.textContent = 'Hora de focar!';
+                    pomodoroCircle.classList.add('pomodoro-active');
                     timerInterval = setInterval(() => {
                         secondsRemaining--; updateDisplay();
                         if (secondsRemaining <= 0) {
@@ -625,25 +615,27 @@
                 function pauseTimer() {
                     isPaused = true; clearInterval(timerInterval);
                     startBtn.textContent = 'Continuar'; statusDisplay.textContent = 'Pausado';
+                    pomodoroCircle.classList.remove('pomodoro-active');
                 }
                 function resetTimer(showAlert = true) {
                     clearInterval(timerInterval); isPaused = true; secondsRemaining = DURATION;
                     updateDisplay(); startBtn.textContent = 'Iniciar'; statusDisplay.textContent = '\u00A0';
+                    pomodoroCircle.classList.remove('pomodoro-active');
                     if(showAlert && window.showGlobalFeedback) { window.showGlobalFeedback('Timer resetado.'); }
                 }
                 startBtn.addEventListener('click', () => { if (isPaused) { startTimer(); } else { pauseTimer(); } });
-                resetBtn.addEventListener('click', () => resetTimer(true)); // Passa true explicitamente
+                resetBtn.addEventListener('click', () => resetTimer(true));
                 updateDisplay();
             }
 
-            // --- Módulo: Calculadora de Média (LOCAL - MOVIDO PARA CÁ) ---
+            // --- Módulo: Calculadora de Média (LOCAL) ---
             function initCalculadoraApp() {
                 const addNotaBtn = document.getElementById('addNotaBtn');
                 const notasContainer = document.getElementById('notasContainer');
                 const calcularMediaBtn = document.getElementById('calcularMediaBtn');
                 const mediaResultado = document.getElementById('mediaResultado');
                 
-                let notaCount = 2; // Começa com 2 campos
+                let notaCount = 2;
 
                 addNotaBtn.addEventListener('click', () => {
                     notaCount++;
@@ -681,25 +673,24 @@
                 });
             }
             
-            // --- NOVO Módulo: Música Foco (LOCAL) ---
+            // --- Módulo: Música Foco (LOCAL) ---
             function initMusicaApp() {
-                // Ferramenta local simples
-                // A lógica está nos links <a> do HTML
-                // Pode adicionar listeners de "play" no futuro
                 console.log("Módulo de Música para Foco inicializado.");
             }
 
 
             // --- INICIALIZAÇÃO DE TODOS OS MÓCULOS ---
             initTodoApp();
-            initHabitosApp(); // NOVO
+            initHabitosApp();
             initFlashcardApp();
             initNotepadApp();
             initLinksApp();
             initMetasApp(); 
             initPomodoroApp(); 
             initCalculadoraApp(); 
-            initMusicaApp(); // NOVO
+            initMusicaApp();
+            initRevisoesApp(); // NOVO
+            initCalendarioApp(); // NOVO
         }
     </script>
     
@@ -712,21 +703,30 @@
         .card-face-front { background-color: white; color: #1f2937; }
         .card-face-back { background-color: #4f46e5; color: white; transform: rotateY(180deg); }
         .nav-link.active { background-color: #4f46e5; color: white; }
-        .task-item.completed span { text-decoration: line-through; color: #6b7280; }
+        
+        /* --- MELHORIA DE LAYOUT: Tarefa Completada --- */
+        .task-item.completed {
+            background-color: #f0fdf4; /* Tailwind green-50 */
+            border-color: #bbf7d0; /* Tailwind green-200 */
+        }
+        .task-item.completed span { 
+            text-decoration: line-through; 
+            color: #6b7280; /* Tailwind gray-500 */
+        }
+        
         #main-app { display: none; } /* Oculto por padrão, JS mostra após login */
         
-        /* NOVO: Estilo para o loader da IA */
-        #aiLoading {
-            border: 4px solid #f3f3f3;
-            border-top: 4px solid #4f46e5;
-            border-radius: 50%;
-            width: 24px;
-            height: 24px;
-            animation: spin 1s linear infinite;
+        /* --- MELHORIA DE LAYOUT: Pulso do Pomodoro --- */
+        @keyframes pulse-foco {
+            0%, 100% {
+                box-shadow: 0 0 0 0 rgba(79, 70, 229, 0.4); /* indigo-600 com opacidade */
+            }
+            50% {
+                box-shadow: 0 0 0 15px rgba(79, 70, 229, 0);
+            }
         }
-        @keyframes spin {
-            0% { transform: rotate(0deg); }
-            100% { transform: rotate(360deg); }
+        .pomodoro-active {
+            animation: pulse-foco 2s infinite;
         }
     </style>
 </head>
@@ -769,17 +769,30 @@
                         Metas Diárias
                     </button>
                 </li>
-                <!-- NOVO: Botão Hábitos -->
                 <li>
                     <button data-target="app-habitos" class="nav-link w-full text-left flex items-center gap-3 px-4 py-3 rounded-lg font-medium text-gray-700 hover:bg-gray-200 transition">
                          <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-6 h-6"><path stroke-linecap="round" stroke-linejoin="round" d="M4.5 12.75l6 6 9-13.5" /></svg>
                         Hábitos
                     </button>
                 </li>
+                <!-- NOVO: Botão Calendário -->
+                <li>
+                    <button data-target="app-calendario" class="nav-link w-full text-left flex items-center gap-3 px-4 py-3 rounded-lg font-medium text-gray-700 hover:bg-gray-200 transition">
+                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-6 h-6"><path stroke-linecap="round" stroke-linejoin="round" d="M6.75 3v2.25M17.25 3v2.25M3 18.75V7.5a2.25 2.25 0 012.25-2.25h13.5A2.25 2.25 0 0121 7.5v11.25m-18 0A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75m-18 0v-7.5A2.25 2.25 0 015.25 9h13.5A2.25 2.25 0 0121 11.25v7.5" /></svg>
+                        Calendário
+                    </button>
+                </li>
+                <!-- NOVO: Botão Revisões -->
+                <li>
+                    <button data-target="app-revisoes" class="nav-link w-full text-left flex items-center gap-3 px-4 py-3 rounded-lg font-medium text-gray-700 hover:bg-gray-200 transition">
+                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-6 h-6"><path stroke-linecap="round" stroke-linejoin="round" d="M16.023 9.348h4.992v-.001M2.985 19.644v-4.992m0 0h4.992m-4.993 0l3.181 3.183a8.25 8.25 0 0013.803-3.7M4.031 9.865a8.25 8.25 0 0113.803-3.7l3.181 3.182m0-4.991v4.99" /></svg>
+                        Revisões
+                    </button>
+                </li>
                 <li>
                     <button data-target="app-flashcards" class="nav-link w-full text-left flex items-center gap-3 px-4 py-3 rounded-lg font-medium text-gray-700 hover:bg-gray-200 transition">
                         <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-6 h-6"><path stroke-linecap="round" stroke-linejoin="round" d="M16.5 8.25V6a2.25 2.25 0 00-2.25-2.25H6A2.25 2.25 0 003.75 6v8.25A2.25 2.25 0 006 16.5h2.25m8.25-8.25H18a2.25 2.25 0 012.25 2.25V18A2.25 2.25 0 0118 20.25h-7.5A2.25 2.25 0 018.25 18v-1.5m8.25-8.25h-6.75a.75.75 0 00-.75.75v6.75a.75.75 0 00.75.75h6.75a.75.75 0 00.75-.75v-6.75a.75.75 0 00-.75-.75z" /></svg>
-                        Flashcards (IA) ✨
+                        Flashcards
                     </button>
                 </li>
                 <li>
@@ -806,7 +819,6 @@
                         Calculadora Média
                     </button>
                 </li>
-                 <!-- NOVO: Botão Música -->
                 <li>
                     <button data-target="app-musica" class="nav-link w-full text-left flex items-center gap-3 px-4 py-3 rounded-lg font-medium text-gray-700 hover:bg-gray-200 transition">
                         <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-6 h-6"><path stroke-linecap="round" stroke-linejoin="round" d="M9 9l10.5-3m0 6.553v3.75a2.25 2.25 0 01-1.07 1.916l-7.5 4.25a2.25 2.25 0 01-2.36 0L3.32 15.22a2.25 2.25 0 01-1.07-1.916V9.61a2.25 2.25 0 011.07-1.916l7.5-4.25a2.25 2.25 0 012.36 0l7.5 4.25A2.25 2.25 0 0119.5 9.61v0z" /></svg>
@@ -827,22 +839,120 @@
         <!-- Conteúdo Principal -->
         <main class="flex-1 p-8 overflow-auto">
             
-            <!-- #1: Painel (Boas-vindas) -->
+            <!-- #1: Painel (Boas-vindas) - LAYOUT NOVO -->
             <div id="app-painel" class="app-view">
                 <h2 class="text-4xl font-bold text-gray-800 mb-6">Bem-vindo(a) ao seu StudyHub!</h2>
-                <p class="text-xl text-gray-600 mb-8">Esta é a sua central de ferramentas para o HackPad 2025.</p>
-                <div class="bg-white p-6 rounded-lg shadow-md">
-                    <h3 class="text-2xl font-semibold mb-4">Como usar:</h3>
-                    <ul class="list-disc list-inside space-y-2 text-gray-700">
-                        <li>Use o menu à esquerda para navegar entre as ferramentas.</li>
-                        <li><strong class="text-indigo-600">Tarefas:</strong> Adicione, remova e marque suas tarefas.</li>
-                        <li><strong class="text-indigo-600">Flashcards (IA) ✨:</strong> Crie seus cards ou gere-os automaticamente com IA!</li>
-                        <li><strong class="text-indigo-600">Timer Pomodoro:</strong> Inicie um timer de 25 minutos para focar.</li>
-                        <li><strong class="text-indigo-600">Bloco de Notas:</strong> Anote rapidamente qualquer coisa.</li>
-                    </ul>
-                    <p class="mt-6 text-sm text-gray-500 font-medium">
-                        Seus dados são salvos na nuvem, em tempo real.
-                    </p>
+                <p class="text-xl text-gray-600 mb-8">Escolha uma ferramenta abaixo para começar.</p>
+                
+                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                    <!-- Card Tarefas -->
+                    <button data-target="app-tarefas" class="nav-link bg-white p-6 rounded-lg shadow-lg text-left hover:shadow-xl hover:-translate-y-1 transition-all">
+                        <div class="flex items-center gap-4">
+                            <div class="bg-indigo-100 text-indigo-600 p-3 rounded-lg">
+                                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-6 h-6"><path stroke-linecap="round" stroke-linejoin="round" d="M8.25 6.75h12M8.25 12h12m-12 5.25h12M3.75 6.75h.007v.008H3.75V6.75zm.375 0a.375.375 0 11-.75 0 .375.375 0 01.75 0zM3.75 12h.007v.008H3.75V12zm.375 0a.375.375 0 11-.75 0 .375.375 0 01.75 0zm-.375 5.25h.007v.008H3.75v-.008zm.375 0a.375.375 0 11-.75 0 .375.375 0 01.75 0z" /></svg>
+                            </div>
+                            <div>
+                                <h3 class="text-xl font-semibold text-gray-800">Tarefas</h3>
+                                <p class="text-gray-500">Organize seus trabalhos.</p>
+                            </div>
+                        </div>
+                    </button>
+                    <!-- Card Calendário (NOVO) -->
+                    <button data-target="app-calendario" class="nav-link bg-white p-6 rounded-lg shadow-lg text-left hover:shadow-xl hover:-translate-y-1 transition-all">
+                        <div class="flex items-center gap-4">
+                            <div class="bg-indigo-100 text-indigo-600 p-3 rounded-lg">
+                                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-6 h-6"><path stroke-linecap="round" stroke-linejoin="round" d="M6.75 3v2.25M17.25 3v2.25M3 18.75V7.5a2.25 2.25 0 012.25-2.25h13.5A2.25 2.25 0 0121 7.5v11.25m-18 0A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75m-18 0v-7.5A2.25 2.25 0 015.25 9h13.5A2.25 2.25 0 0121 11.25v7.5" /></svg>
+                            </div>
+                            <div>
+                                <h3 class="text-xl font-semibold text-gray-800">Calendário</h3>
+                                <p class="text-gray-500">Agende provas e eventos.</p>
+                            </div>
+                        </div>
+                    </button>
+                    <!-- Card Revisões (NOVO) -->
+                    <button data-target="app-revisoes" class="nav-link bg-white p-6 rounded-lg shadow-lg text-left hover:shadow-xl hover:-translate-y-1 transition-all">
+                        <div class="flex items-center gap-4">
+                            <div class="bg-indigo-100 text-indigo-600 p-3 rounded-lg">
+                                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-6 h-6"><path stroke-linecap="round" stroke-linejoin="round" d="M16.023 9.348h4.992v-.001M2.985 19.644v-4.992m0 0h4.992m-4.993 0l3.181 3.183a8.25 8.25 0 0013.803-3.7M4.031 9.865a8.25 8.25 0 0113.803-3.7l3.181 3.182m0-4.991v4.99" /></svg>
+                            </div>
+                            <div>
+                                <h3 class="text-xl font-semibold text-gray-800">Revisões</h3>
+                                <p class="text-gray-500">Rastreie o que revisar.</p>
+                            </div>
+                        </div>
+                    </button>
+                    <!-- Card Flashcards -->
+                    <button data-target="app-flashcards" class="nav-link bg-white p-6 rounded-lg shadow-lg text-left hover:shadow-xl hover:-translate-y-1 transition-all">
+                        <div class="flex items-center gap-4">
+                            <div class="bg-indigo-100 text-indigo-600 p-3 rounded-lg">
+                                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-6 h-6"><path stroke-linecap="round" stroke-linejoin="round" d="M16.5 8.25V6a2.25 2.25 0 00-2.25-2.25H6A2.25 2.25 0 003.75 6v8.25A2.25 2.25 0 006 16.5h2.25m8.25-8.25H18a2.25 2.25 0 012.25 2.25V18A2.25 2.25 0 0118 20.25h-7.5A2.25 2.25 0 018.25 18v-1.5m8.25-8.25h-6.75a.75.75 0 00-.75.75v6.75a.75.75 0 00.75.75h6.75a.75.75 0 00.75-.75v-6.75a.75.75 0 00-.75-.75z" /></svg>
+                            </div>
+                            <div>
+                                <h3 class="text-xl font-semibold text-gray-800">Flashcards</h3>
+                                <p class="text-gray-500">Crie cards e estude.</p>
+                            </div>
+                        </div>
+                    </button>
+                    <!-- Card Pomodoro -->
+                    <button data-target="app-pomodoro" class="nav-link bg-white p-6 rounded-lg shadow-lg text-left hover:shadow-xl hover:-translate-y-1 transition-all">
+                        <div class="flex items-center gap-4">
+                            <div class="bg-indigo-100 text-indigo-600 p-3 rounded-lg">
+                                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-6 h-6"><path stroke-linecap="round" stroke-linejoin="round" d="M12 6v6h4.5m4.5 0a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+                            </div>
+                            <div>
+                                <h3 class="text-xl font-semibold text-gray-800">Timer Pomodoro</h3>
+                                <p class="text-gray-500">Timer de foco de 25 min.</p>
+                            </div>
+                        </div>
+                    </button>
+                    <!-- Card Notas -->
+                    <button data-target="app-notas" class="nav-link bg-white p-6 rounded-lg shadow-lg text-left hover:shadow-xl hover:-translate-y-1 transition-all">
+                        <div class="flex items-center gap-4">
+                            <div class="bg-indigo-100 text-indigo-600 p-3 rounded-lg">
+                                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-6 h-6"><path stroke-linecap="round" stroke-linejoin="round" d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L10.582 16.07a4.5 4.5 0 01-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 011.13-1.897l8.932-8.931zm0 0L19.5 7.125M18 14v4.75A2.25 2.25 0 0115.75 21H5.25A2.25 2.25 0 013 18.75V8.25A2.25 2.25 0 015.25 6H10" /></svg>
+                            </div>
+                            <div>
+                                <h3 class="text-xl font-semibold text-gray-800">Bloco de Notas</h3>
+                                <p class="text-gray-500">Anote ideias rápidas.</p>
+                            </div>
+                        </div>
+                    </button>
+                    <!-- Card Hábitos -->
+                    <button data-target="app-habitos" class="nav-link bg-white p-6 rounded-lg shadow-lg text-left hover:shadow-xl hover:-translate-y-1 transition-all">
+                        <div class="flex items-center gap-4">
+                            <div class="bg-indigo-100 text-indigo-600 p-3 rounded-lg">
+                                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-6 h-6"><path stroke-linecap="round" stroke-linejoin="round" d="M4.5 12.75l6 6 9-13.5" /></svg>
+                            </div>
+                            <div>
+                                <h3 class="text-xl font-semibold text-gray-800">Hábitos</h3>
+                                <p class="text-gray-500">Rastreie suas rotinas.</p>
+                            </div>
+                        </div>
+                    </button>
+                    <!-- Card Links -->
+                    <button data-target="app-links" class="nav-link bg-white p-6 rounded-lg shadow-lg text-left hover:shadow-xl hover:-translate-y-1 transition-all">
+                        <div class="flex items-center gap-4">
+                            <div class="bg-indigo-100 text-indigo-600 p-3 rounded-lg">
+                                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-6 h-6"><path stroke-linecap="round" stroke-linejoin="round" d="M13.19 8.688a4.5 4.5 0 011.242 7.244l-4.5 4.5a4.5 4.5 0 01-6.364-6.364l1.757-1.757m13.35-.622l1.757-1.757a4.5 4.5 0 00-6.364-6.364l-4.5 4.5a4.5 4.5 0 001.242 7.244" /></svg>
+                            </div>
+                            <div>
+                                <h3 class="text-xl font-semibold text-gray-800">Links Rápidos</h3>
+                                <p class="text-gray-500">Salve suas URLs.</p>
+                            </div>
+                        </div>
+                    </button>
+                    <!-- Card Calculadora -->
+                     <button data-target="app-calculadora" class="nav-link bg-white p-6 rounded-lg shadow-lg text-left hover:shadow-xl hover:-translate-y-1 transition-all">
+                        <div class="flex items-center gap-4">
+                            <div class="bg-indigo-100 text-indigo-600 p-3 rounded-lg">
+                                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-6 h-6"><path stroke-linecap="round" stroke-linejoin="round" d="M15.75 15.75l-2.489-2.489m0 0a3.375 3.375 0 10-4.773-4.773 3.375 3.375 0 004.774 4.774zM21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+                            </div>
+                            <div>
+                                <h3 class="text-xl font-semibold text-gray-800">Calculadora Média</h3>
+                                <p class="text-gray-500">Calcule suas notas.</p>
+                            </div>
+                        </div>
+                    </button>
                 </div>
             </div>
 
@@ -870,7 +980,7 @@
                 </div>
             </div>
 
-            <!-- #4: Rastreador de Hábitos (NOVO) -->
+            <!-- #4: Rastreador de Hábitos -->
             <div id="app-habitos" class="app-view hidden max-w-2xl mx-auto">
                 <h2 class="text-3xl font-bold text-gray-800 mb-6">Rastreador de Hábitos</h2>
                 <div class="bg-white p-6 rounded-lg shadow-lg">
@@ -879,48 +989,54 @@
                         <button id="addHabitBtn" class="bg-indigo-600 text-white py-3 px-5 rounded-lg font-semibold hover:bg-indigo-700 transition shadow-md">Adicionar Hábito</button>
                     </div>
                     <ul id="habitosList" class="space-y-3"></ul>
-                     <p class="text-xs text-gray-500 mt-4 text-center">Clique no hábito para marcar/desmarcar. Os hábitos são resetados manualmente.</p>
+                     <p class="text-xs text-gray-500 mt-4 text-center">Clique no hábito para marcar/desmarcar. Os hábitos são resetados manually.</p>
+                </div>
+            </div>
+
+            <!-- #5: Calendário de Eventos (NOVO) -->
+            <div id="app-calendario" class="app-view hidden max-w-2xl mx-auto">
+                <h2 class="text-3xl font-bold text-gray-800 mb-6">Calendário de Eventos</h2>
+                <div class="bg-white p-6 rounded-lg shadow-lg">
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
+                        <input type="text" id="eventoInput" class="md:col-span-2 w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:outline-none" placeholder="Nome do Evento (ex: Prova de Física)" />
+                        <input type="date" id="eventoDateInput" class="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:outline-none" />
+                    </div>
+                    <button id="addEventoBtn" class="w-full bg-indigo-600 text-white py-3 px-5 rounded-lg font-semibold hover:bg-indigo-700 transition shadow-md">Adicionar Evento</button>
+                    <ul id="eventosList" class="space-y-3 mt-6"></ul>
                 </div>
             </div>
             
-            <!-- #5: Flashcards (COM IA) -->
+            <!-- #6: Revisões Periódicas (NOVO) -->
+            <div id="app-revisoes" class="app-view hidden max-w-2xl mx-auto">
+                <h2 class="text-3xl font-bold text-gray-800 mb-6">Revisões Periódicas</h2>
+                <div class="bg-white p-6 rounded-lg shadow-lg">
+                    <div class="flex gap-4 mb-4">
+                        <input type="text" id="revisaoInput" class="flex-grow p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:outline-none" placeholder="Ex: Revisar Tabela Periódica" />
+                        <button id="addRevisaoBtn" class="bg-indigo-600 text-white py-3 px-5 rounded-lg font-semibold hover:bg-indigo-700 transition shadow-md">Adicionar Revisão</button>
+                    </div>
+                    <ul id="revisoesList" class="space-y-3"></ul>
+                     <p class="text-xs text-gray-500 mt-4 text-center">Clique na revisão para marcar/desmarcar.</p>
+                </div>
+            </div>
+            
+            <!-- #7: Flashcards (Sem IA) -->
             <div id="app-flashcards" class="app-view hidden">
-                <h2 class="text-3xl font-bold text-gray-800 mb-6">Módulo de Flashcards (IA) ✨</h2>
+                <h2 class="text-3xl font-bold text-gray-800 mb-6">Módulo de Flashcards</h2>
                 <main class="w-full max-w-5xl mx-auto grid grid-cols-1 md:grid-cols-2 gap-8">
-                    <!-- Seção da Esquerda: Criar Manual + Gerar com IA -->
-                    <section class="bg-white p-6 rounded-xl shadow-lg space-y-6">
-                        <!-- Gerador de IA -->
-                        <div>
-                            <h2 class="text-2xl font-semibold text-gray-900 mb-4">Gerar Cards com IA</h2>
-                            <div class="space-y-4">
-                                <div>
-                                    <label for="aiThemeInput" class="block text-sm font-medium text-gray-700 mb-1">Tema:</label>
-                                    <input type="text" id="aiThemeInput" class="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:outline-none" placeholder="Ex: Revolução Francesa">
-                                </div>
-                                <button id="aiGenerateBtn" class="w-full bg-green-600 text-white py-3 px-6 rounded-lg font-semibold hover:bg-green-700 transition shadow-md flex items-center justify-center gap-2 disabled:opacity-75">
-                                    <span id="aiLoading" class="hidden"></span>
-                                    Gerar 5 Cards
-                                </button>
+                    <!-- Seção da Esquerda: Criar Manual -->
+                    <section class="bg-white p-6 rounded-xl shadow-lg">
+                        <h2 class="text-2xl font-semibold text-gray-900 mb-4">Criar Novo Card</h2>
+                        <div class="space-y-4">
+                            <div>
+                                <label for="frente" class="block text-sm font-medium text-gray-700 mb-1">Frente (Pergunta):</label>
+                                <textarea id="frente" rows="4" class="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:outline-none" placeholder="Ex: Qual a capital do Brasil?"></textarea>
                             </div>
-                        </div>
-                        
-                        <hr class="my-6 border-t border-gray-200">
-
-                        <!-- Criar Manual -->
-                        <div>
-                            <h2 class="text-2xl font-semibold text-gray-900 mb-4">Criar Novo Card (Manual)</h2>
-                            <div class="space-y-4">
-                                <div>
-                                    <label for="frente" class="block text-sm font-medium text-gray-700 mb-1">Frente (Pergunta):</label>
-                                    <textarea id="frente" rows="3" class="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:outline-none" placeholder="Ex: Qual a capital do Brasil?"></textarea>
-                                </div>
-                                <div>
-                                    <label for="verso" class="block text-sm font-medium text-gray-700 mb-1">Verso (Resposta):</label>
-                                    <textarea id="verso" rows="3" class="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:outline-none" placeholder="Ex: Brasília"></textarea>
-                                </div>
-                                <button id="addCardBtn" class="w-full bg-indigo-600 text-white py-3 px-6 rounded-lg font-semibold hover:bg-indigo-700 transition shadow-md">Adicionar Card</button>
-                                <button id="clearCardsBtn" class="w-full bg-red-500 text-white py-2 px-4 rounded-lg font-medium hover:bg-red-600 transition shadow-sm">Limpar Todos os Cards</button>
+                            <div>
+                                <label for="verso" class="block text-sm font-medium text-gray-700 mb-1">Verso (Resposta):</label>
+                                <textarea id="verso" rows="4" class="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:outline-none" placeholder="Ex: Brasília"></textarea>
                             </div>
+                            <button id="addCardBtn" class="w-full bg-indigo-600 text-white py-3 px-6 rounded-lg font-semibold hover:bg-indigo-700 transition shadow-md">Adicionar Card</button>
+                            <button id="clearCardsBtn" class="w-full bg-red-500 text-white py-2 px-4 rounded-lg font-medium hover:bg-red-600 transition shadow-sm">Limpar Todos os Cards</button>
                         </div>
                     </section>
                     
@@ -935,19 +1051,19 @@
                         </div>
                         <p id="cardCounter" class="text-center text-gray-600 font-medium mb-4">Card 0 / 0</p>
                         <div class="flex justify-center gap-3 mb-3">
-                            <button id="prevBtn" title="Anterior" class="bg-white p-3 rounded-full shadow-md hover:bg-gray-100 transition disabled:opacity-50 disabled:cursor-not-allowed"><svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="w-6 h-6 text-gray-700"><path stroke-linecap="round" stroke-linejoin="round" d="M15.75 19.5L8.25 12l7.5-7.5" /></svg></button>
-                            <button id="flipBtn" class="bg-indigo-600 text-white py-3 px-8 rounded-lg font-semibold hover:bg-indigo-700 transition shadow-md flex-grow disabled:opacity-50 disabled:cursor-not-allowed">Virar Card</button>
-                            <button id="nextBtn" title="Próximo" class="bg-white p-3 rounded-full shadow-md hover:bg-gray-100 transition disabled:opacity-50 disabled:cursor-not-allowed"><svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="w-6 h-6 text-gray-700"><path stroke-linecap="round" stroke-linejoin="round" d="M8.25 4.5l7.5 7.5-7.5 7.5" /></svg></button>
+                            <button id="prevBtn" title="Anterior" class="bg-white p-3 rounded-full shadow-md hover:bg-gray-100 transition transform hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed"><svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="w-6 h-6 text-gray-700"><path stroke-linecap="round" stroke-linejoin="round" d="M15.75 19.5L8.25 12l7.5-7.5" /></svg></button>
+                            <button id="flipBtn" class="bg-indigo-600 text-white py-3 px-8 rounded-lg font-semibold hover:bg-indigo-700 transition shadow-md flex-grow disabled:opacity-50 disabled:cursor-not-allowed transform hover:scale-105">Virar Card</button>
+                            <button id="nextBtn" title="Próximo" class="bg-white p-3 rounded-full shadow-md hover:bg-gray-100 transition transform hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed"><svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="w-6 h-6 text-gray-700"><path stroke-linecap="round" stroke-linejoin="round" d="M8.25 4.5l7.5 7.5-7.5 7.5" /></svg></button>
                         </div>
-                        <button id="shuffleBtn" class="w-full bg-gray-700 text-white py-2 px-4 rounded-lg font-medium hover:bg-gray-800 transition shadow-sm disabled:opacity-50 disabled:cursor-not-allowed">Embaralhar Cards</button>
+                        <button id="shuffleBtn" class="w-full bg-gray-700 text-white py-2 px-4 rounded-lg font-medium hover:bg-gray-800 transition shadow-sm disabled:opacity-50 disabled:cursor-not-allowed transform hover:scale-105">Embaralhar Cards</button>
                     </section>
                 </main>
             </div>
 
-            <!-- #6: Timer Pomodoro -->
+            <!-- #8: Timer Pomodoro -->
             <div id="app-pomodoro" class="app-view hidden text-center max-w-md mx-auto">
                 <h2 class="text-3xl font-bold text-gray-800 mb-6">Timer Pomodoro</h2>
-                <div class="bg-white p-8 rounded-full shadow-2xl w-80 h-80 flex flex-col items-center justify-center mx-auto">
+                <div id="pomodoroCircle" class="bg-white p-8 rounded-full shadow-2xl w-80 h-80 flex flex-col items-center justify-center mx-auto transition-shadow">
                     <h3 class="text-gray-500 text-lg font-medium">Tempo de Foco</h3>
                     <h1 id="timerDisplay" class="text-8xl font-extrabold text-gray-900 my-4">25:00</h1>
                     <p id="pomodoroStatus" class="text-lg text-gray-600 font-semibold">&nbsp;</p>
@@ -958,7 +1074,7 @@
                 </div>
             </div>
 
-            <!-- #7: Bloco de Notas -->
+            <!-- #9: Bloco de Notas -->
             <div id="app-notas" class="app-view hidden max-w-3xl mx-auto">
                 <h2 class="text-3xl font-bold text-gray-800 mb-6">Bloco de Notas Rápido</h2>
                 <div class="bg-white p-6 rounded-lg shadow-lg">
@@ -967,7 +1083,7 @@
                 </div>
             </div>
 
-            <!-- #8: Links Rápidos -->
+            <!-- #10: Links Rápidos -->
             <div id="app-links" class="app-view hidden max-w-2xl mx-auto">
                 <h2 class="text-3xl font-bold text-gray-800 mb-6">Links Rápidos</h2>
                 <div class="bg-white p-6 rounded-lg shadow-lg">
@@ -980,7 +1096,7 @@
                 </div>
             </div>
 
-            <!-- #9: Calculadora de Média -->
+            <!-- #11: Calculadora de Média -->
             <div id="app-calculadora" class="app-view hidden max-w-md mx-auto">
                 <h2 class="text-3xl font-bold text-gray-800 mb-6">Calculadora de Média</h2>
                 <div class="bg-white p-6 rounded-lg shadow-lg">
@@ -1004,22 +1120,22 @@
                 </div>
             </div>
 
-            <!-- #10: Música Foco (NOVO) -->
+            <!-- #12: Música Foco -->
             <div id="app-musica" class="app-view hidden max-w-2xl mx-auto">
                 <h2 class="text-3xl font-bold text-gray-800 mb-6">Música para Foco</h2>
                 <div class="bg-white p-6 rounded-lg shadow-lg">
                     <p class="text-gray-600 mb-6 text-center">Clique em um estilo para abrir uma playlist no YouTube e começar a focar.</p>
                     <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                        <a href="https://www.youtube.com/results?search_query=lo-fi+hip+hop+radio" target="_blank" rel="noopener noreferrer" class="block bg-indigo-500 text-white text-center font-semibold p-6 rounded-lg shadow-md hover:bg-indigo-600 transition">
+                        <a href="https://www.youtube.com/results?search_query=lo-fi+hip+hop+radio" target="_blank" rel="noopener noreferrer" class="block bg-indigo-500 text-white text-center font-semibold p-6 rounded-lg shadow-md hover:bg-indigo-600 transition transform hover:scale-105">
                             🎵 Lo-Fi Beats
                         </a>
-                        <a href="https://www.youtube.com/results?search_query=classical+music+for+studying" target="_blank" rel="noopener noreferrer" class="block bg-green-500 text-white text-center font-semibold p-6 rounded-lg shadow-md hover:bg-green-600 transition">
+                        <a href="https://www.youtube.com/results?search_query=classical+music+for+studying" target="_blank" rel="noopener noreferrer" class="block bg-green-500 text-white text-center font-semibold p-6 rounded-lg shadow-md hover:bg-green-600 transition transform hover:scale-105">
                             🎻 Música Clássica
                         </a>
-                        <a href="https://www.youtube.com/results?search_query=rain+sounds+for+sleeping" target="_blank" rel="noopener noreferrer" class="block bg-blue-500 text-white text-center font-semibold p-6 rounded-lg shadow-md hover:bg-blue-600 transition">
+                        <a href="https://www.youtube.com/results?search_query=rain+sounds+for+sleeping" target="_blank" rel="noopener noreferrer" class="block bg-blue-500 text-white text-center font-semibold p-6 rounded-lg shadow-md hover:bg-blue-600 transition transform hover:scale-105">
                             🌧️ Som de Chuva
                         </a>
-                        <a href="https://www.youtube.com/results?search_query=ocean+waves+sounds" target="_blank" rel="noopener noreferrer" class="block bg-cyan-500 text-white text-center font-semibold p-6 rounded-lg shadow-md hover:bg-cyan-600 transition">
+                        <a href="https://www.youtube.com/results?search_query=ocean+waves+sounds" target="_blank" rel="noopener noreferrer" class="block bg-cyan-500 text-white text-center font-semibold p-6 rounded-lg shadow-md hover:bg-cyan-600 transition transform hover:scale-105">
                             🌊 Ondas do Mar
                         </a>
                     </div>
