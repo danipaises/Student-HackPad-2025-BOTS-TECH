@@ -53,6 +53,49 @@
         // só são buscados DEPOIS que o DOM estiver carregado.
         let mainAppDiv, loginDiv, loginBtn, logoutBtn, userEmailDisplay;
 
+        // --- NOVO: Função de API Gemini com Backoff Exponencial ---
+        /**
+         * Faz uma chamada fetch para a API Gemini com retentativa e backoff.
+         * @param {string} apiUrl O endpoint da API.
+         * @param {object} payload O corpo da requisição.
+         * @param {number} maxRetries Máximo de tentativas.
+         * @returns {Promise<object>} A resposta da API em JSON.
+         */
+        async function fetchWithBackoff(apiUrl, payload, maxRetries = 5) {
+            let attempt = 0;
+            let delay = 1000; // 1 segundo inicial
+
+            while (attempt < maxRetries) {
+                try {
+                    const response = await fetch(apiUrl, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(payload)
+                    });
+
+                    if (response.ok) {
+                        return await response.json();
+                    } else if (response.status === 429 || response.status >= 500) {
+                        // 429 (Too Many Requests) ou erro de servidor
+                        console.warn(`Tentativa ${attempt + 1} falhou com status ${response.status}. Tentando novamente em ${delay}ms...`);
+                    } else {
+                        // Outro erro (ex: 400 Bad Request), não tentar novamente
+                        console.error(`Erro ${response.status}: ${response.statusText}`);
+                        throw new Error(`Erro de API: ${response.statusText}`);
+                    }
+                } catch (error) {
+                    // Erro de rede
+                    console.warn(`Tentativa ${attempt + 1} falhou com erro de rede. Tentando novamente em ${delay}ms...`);
+                }
+
+                await new Promise(resolve => setTimeout(resolve, delay));
+                delay *= 2; // Dobra o tempo de espera
+                attempt++;
+            }
+            throw new Error('Falha ao chamar a API Gemini após múltiplas tentativas.');
+        }
+
+
         // Função principal de inicialização
         function initApp() {
             // Adiciona listeners aos botões de login/logout
@@ -303,6 +346,11 @@
                 const flipBtn = document.getElementById('flipBtn');
                 const nextBtn = document.getElementById('nextBtn');
                 const shuffleBtn = document.getElementById('shuffleBtn');
+                
+                // --- NOVO: Elementos da IA ---
+                const aiThemeInput = document.getElementById('aiThemeInput');
+                const aiGenerateBtn = document.getElementById('aiGenerateBtn');
+                const aiLoading = document.getElementById('aiLoading');
 
                 let cards = [];
                 let currentCardIndex = 0;
@@ -380,6 +428,83 @@
                     cards = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
                     if (currentCardIndex >= cards.length) { currentCardIndex = 0; }
                     updateCardView();
+                });
+                
+                // --- NOVO: Lógica do Gerador de IA ---
+                aiGenerateBtn.addEventListener('click', async () => {
+                    const theme = aiThemeInput.value.trim();
+                    if (!theme) {
+                        showFeedback("Por favor, insira um tema.");
+                        return;
+                    }
+
+                    // Mostra o loading e desabilita o botão
+                    aiLoading.classList.remove('hidden');
+                    aiGenerateBtn.disabled = true;
+                    aiGenerateBtn.textContent = 'Gerando...';
+
+                    const apiKey = ""; // API key é injetada pelo ambiente
+                    const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent?key=${apiKey}`;
+
+                    const systemPrompt = `Você é um assistente de estudos. Sua tarefa é gerar 5 flashcards (pergunta e resposta) sobre um tema.
+                    Responda APENAS com um array de objetos JSON. Cada objeto deve ter duas chaves: "frente" (para a pergunta) e "verso" (para a resposta).
+                    Não inclua \`\`\`json ou qualquer outro texto fora do array.`;
+                    
+                    const userQuery = `Tema: ${theme}`;
+
+                    const payload = {
+                        contents: [{ parts: [{ text: userQuery }] }],
+                        systemInstruction: {
+                            parts: [{ text: systemPrompt }]
+                        },
+                        generationConfig: {
+                            responseMimeType: "application/json",
+                            responseSchema: {
+                                type: "ARRAY",
+                                items: {
+                                    type: "OBJECT",
+                                    properties: {
+                                        "frente": { "type": "STRING" },
+                                        "verso": { "type": "STRING" }
+                                    },
+                                    required: ["frente", "verso"]
+                                }
+                            }
+                        }
+                    };
+
+                    try {
+                        const result = await fetchWithBackoff(apiUrl, payload);
+                        
+                        if (result.candidates && result.candidates[0].content && result.candidates[0].content.parts[0].text) {
+                            const jsonText = result.candidates[0].content.parts[0].text;
+                            const generatedCards = JSON.parse(jsonText);
+
+                            // Salva os cards no Firebase
+                            const savePromises = generatedCards.map(card => {
+                                return addDoc(flashcardsCollectionRef, { 
+                                    frente: card.frente, 
+                                    verso: card.verso 
+                                });
+                            });
+                            
+                            await Promise.all(savePromises);
+                            
+                            showFeedback(`${generatedCards.length} cards gerados e salvos!`);
+                            aiThemeInput.value = ''; // Limpa o input
+                        } else {
+                            throw new Error("Resposta da IA em formato inesperado.");
+                        }
+
+                    } catch (error) {
+                        console.error("Erro ao gerar cards com IA:", error);
+                        showFeedback("Erro ao gerar cards. Tente novamente.");
+                    } finally {
+                        // Esconde o loading e reabilita o botão
+                        aiLoading.classList.add('hidden');
+                        aiGenerateBtn.disabled = false;
+                        aiGenerateBtn.textContent = 'Gerar';
+                    }
                 });
             }
 
@@ -583,12 +708,26 @@
         .card-scene { perspective: 1000px; }
         .card-container { width: 100%; height: 100%; position: relative; transition: transform 0.6s; transform-style: preserve-3d; }
         .card-container.is-flipped { transform: rotateY(180deg); }
-        .card-face { position: absolute; width: 100%; height: 100%; -webkit-backface-visibility: hidden; backface-visibility: hidden; display: flex; align-items: center; justify-content: center; padding: 1.5rem; border-radius: 0.75rem; box-shadow: 0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1); }
+        .card-face { position: absolute; width: 100%; height: 100%; -webkit-backface-visibility: hidden; backface-visibility: hidden; display: flex; align-items-center; justify-content: center; padding: 1.5rem; border-radius: 0.75rem; box-shadow: 0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1); }
         .card-face-front { background-color: white; color: #1f2937; }
         .card-face-back { background-color: #4f46e5; color: white; transform: rotateY(180deg); }
         .nav-link.active { background-color: #4f46e5; color: white; }
         .task-item.completed span { text-decoration: line-through; color: #6b7280; }
         #main-app { display: none; } /* Oculto por padrão, JS mostra após login */
+        
+        /* NOVO: Estilo para o loader da IA */
+        #aiLoading {
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #4f46e5;
+            border-radius: 50%;
+            width: 24px;
+            height: 24px;
+            animation: spin 1s linear infinite;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
     </style>
 </head>
 <body class="h-screen overflow-hidden">
@@ -640,7 +779,7 @@
                 <li>
                     <button data-target="app-flashcards" class="nav-link w-full text-left flex items-center gap-3 px-4 py-3 rounded-lg font-medium text-gray-700 hover:bg-gray-200 transition">
                         <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-6 h-6"><path stroke-linecap="round" stroke-linejoin="round" d="M16.5 8.25V6a2.25 2.25 0 00-2.25-2.25H6A2.25 2.25 0 003.75 6v8.25A2.25 2.25 0 006 16.5h2.25m8.25-8.25H18a2.25 2.25 0 012.25 2.25V18A2.25 2.25 0 0118 20.25h-7.5A2.25 2.25 0 018.25 18v-1.5m8.25-8.25h-6.75a.75.75 0 00-.75.75v6.75a.75.75 0 00.75.75h6.75a.75.75 0 00.75-.75v-6.75a.75.75 0 00-.75-.75z" /></svg>
-                        Flashcards
+                        Flashcards (IA) ✨
                     </button>
                 </li>
                 <li>
@@ -697,7 +836,7 @@
                     <ul class="list-disc list-inside space-y-2 text-gray-700">
                         <li>Use o menu à esquerda para navegar entre as ferramentas.</li>
                         <li><strong class="text-indigo-600">Tarefas:</strong> Adicione, remova e marque suas tarefas.</li>
-                        <li><strong class="text-indigo-600">Flashcards:</strong> Crie e estude seus cards (frente e verso).</li>
+                        <li><strong class="text-indigo-600">Flashcards (IA) ✨:</strong> Crie seus cards ou gere-os automaticamente com IA!</li>
                         <li><strong class="text-indigo-600">Timer Pomodoro:</strong> Inicie um timer de 25 minutos para focar.</li>
                         <li><strong class="text-indigo-600">Bloco de Notas:</strong> Anote rapidamente qualquer coisa.</li>
                     </ul>
@@ -744,25 +883,48 @@
                 </div>
             </div>
             
-            <!-- #5: Flashcards -->
+            <!-- #5: Flashcards (COM IA) -->
             <div id="app-flashcards" class="app-view hidden">
-                <h2 class="text-3xl font-bold text-gray-800 mb-6">Módulo de Flashcards</h2>
+                <h2 class="text-3xl font-bold text-gray-800 mb-6">Módulo de Flashcards (IA) ✨</h2>
                 <main class="w-full max-w-5xl mx-auto grid grid-cols-1 md:grid-cols-2 gap-8">
-                    <section class="bg-white p-6 rounded-xl shadow-lg">
-                        <h2 class="text-2xl font-semibold text-gray-900 mb-4">Criar Novo Card</h2>
-                        <div class="space-y-4">
-                            <div>
-                                <label for="frente" class="block text-sm font-medium text-gray-700 mb-1">Frente (Pergunta):</label>
-                                <textarea id="frente" rows="4" class="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:outline-none" placeholder="Ex: Qual a capital do Brasil?"></textarea>
+                    <!-- Seção da Esquerda: Criar Manual + Gerar com IA -->
+                    <section class="bg-white p-6 rounded-xl shadow-lg space-y-6">
+                        <!-- Gerador de IA -->
+                        <div>
+                            <h2 class="text-2xl font-semibold text-gray-900 mb-4">Gerar Cards com IA</h2>
+                            <div class="space-y-4">
+                                <div>
+                                    <label for="aiThemeInput" class="block text-sm font-medium text-gray-700 mb-1">Tema:</label>
+                                    <input type="text" id="aiThemeInput" class="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:outline-none" placeholder="Ex: Revolução Francesa">
+                                </div>
+                                <button id="aiGenerateBtn" class="w-full bg-green-600 text-white py-3 px-6 rounded-lg font-semibold hover:bg-green-700 transition shadow-md flex items-center justify-center gap-2 disabled:opacity-75">
+                                    <span id="aiLoading" class="hidden"></span>
+                                    Gerar 5 Cards
+                                </button>
                             </div>
-                            <div>
-                                <label for="verso" class="block text-sm font-medium text-gray-700 mb-1">Verso (Resposta):</label>
-                                <textarea id="verso" rows="4" class="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:outline-none" placeholder="Ex: Brasília"></textarea>
+                        </div>
+                        
+                        <hr class="my-6 border-t border-gray-200">
+
+                        <!-- Criar Manual -->
+                        <div>
+                            <h2 class="text-2xl font-semibold text-gray-900 mb-4">Criar Novo Card (Manual)</h2>
+                            <div class="space-y-4">
+                                <div>
+                                    <label for="frente" class="block text-sm font-medium text-gray-700 mb-1">Frente (Pergunta):</label>
+                                    <textarea id="frente" rows="3" class="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:outline-none" placeholder="Ex: Qual a capital do Brasil?"></textarea>
+                                </div>
+                                <div>
+                                    <label for="verso" class="block text-sm font-medium text-gray-700 mb-1">Verso (Resposta):</label>
+                                    <textarea id="verso" rows="3" class="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:outline-none" placeholder="Ex: Brasília"></textarea>
+                                </div>
+                                <button id="addCardBtn" class="w-full bg-indigo-600 text-white py-3 px-6 rounded-lg font-semibold hover:bg-indigo-700 transition shadow-md">Adicionar Card</button>
+                                <button id="clearCardsBtn" class="w-full bg-red-500 text-white py-2 px-4 rounded-lg font-medium hover:bg-red-600 transition shadow-sm">Limpar Todos os Cards</button>
                             </div>
-                            <button id="addCardBtn" class="w-full bg-indigo-600 text-white py-3 px-6 rounded-lg font-semibold hover:bg-indigo-700 transition shadow-md">Adicionar Card</button>
-                            <button id="clearCardsBtn" class="w-full bg-red-500 text-white py-2 px-4 rounded-lg font-medium hover:bg-red-600 transition shadow-sm">Limpar Todos os Cards</button>
                         </div>
                     </section>
+                    
+                    <!-- Seção da Direita: Estudar Cards -->
                     <section class="flex flex-col">
                         <h2 class="text-2xl font-semibold text-gray-900 mb-4 text-center md:text-left">Estudar Cards</h2>
                         <div class="card-scene w-full h-64 md:h-80 mb-4">
