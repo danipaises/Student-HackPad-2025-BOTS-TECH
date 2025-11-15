@@ -11,10 +11,12 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     
+    <!-- NOVO: Adicionando a biblioteca de Gráficos (Chart.js) -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
     <!-- SDKs do Firebase (Módulos Atualizados para Login) -->
     <script type="module">
         // --- Configuração do Firebase ---
-        // (Movida para cá para funcionar no GitHub/ambientes externos)
         const firebaseConfig = {
           apiKey: "AIzaSyD1j7ynpoB_Qalk8h9xZPmCSnAGCwKhHGk",
           authDomain: "strange-descent-449722-b5.firebaseapp.com",
@@ -70,7 +72,6 @@
                     const appId = 'studyhub-hackpad'; 
                     
                     // Inicializa os componentes que dependem do Firebase
-                    // (Agora esta função inicializa TUDO)
                     initComponents(db, auth, appId, user.uid);
                 } else {
                     // --- USUÁRIO ESTÁ DESLOGADO ---
@@ -129,7 +130,6 @@
                     document.getElementById(targetId).classList.remove('hidden');
                     navLinks.forEach(nav => nav.classList.remove('active'));
                     // Encontra o link de navegação que corresponde ao target e o ativa
-                    // Isso corrige o clique nos cards do painel
                     const linkToActivate = document.querySelector(`.nav-link[data-target="${targetId}"]`);
                     if (linkToActivate) {
                         linkToActivate.classList.add('active');
@@ -150,7 +150,7 @@
                     feedbackModal.classList.add('hidden');
                 }, duration);
             }
-            // Disponibiliza globalmente para o Pomodoro
+            // Disponibiliza globalmente
             window.showGlobalFeedback = showFeedback;
             
             // --- Gerenciador de Confirmação Global ---
@@ -191,8 +191,10 @@
             const linksCollectionRef = collection(db, `artifacts/${appId}/users/${userId}/links`);
             const metasDocRef = doc(db, `artifacts/${appId}/users/${userId}/metas/diarias`); 
             const habitosCollectionRef = collection(db, `artifacts/${appId}/users/${userId}/habitos`);
-            // const revisoesCollectionRef = collection(db, `artifacts/${appId}/users/${userId}/revisoes`); // Removido
             const eventosCollectionRef = collection(db, `artifacts/${appId}/users/${userId}/eventos`);
+            // NOVO: Referências para Tabela e Gráfico
+            const tableDocRef = doc(db, `artifacts/${appId}/users/${userId}/tabelas/principal`);
+            const chartDocRef = doc(db, `artifacts/${appId}/users/${userId}/graficos/principal`);
 
             // --- Módulo: Lista de Tarefas (Firestore) ---
             function initTodoApp() {
@@ -294,42 +296,41 @@
                 });
             }
 
-            // --- Módulo: Criador de Tabela (LOCAL) ---
-            function initTabelaApp() {
+            // --- Módulo: Tabelas & Gráficos (Firestore & LOCAL) ---
+            function initGraficosApp() {
+                // Seção da Tabela
                 const tableRowsInput = document.getElementById('tableRowsInput');
                 const tableColsInput = document.getElementById('tableColsInput');
                 const createTableBtn = document.getElementById('createTableBtn');
+                const saveTableBtn = document.getElementById('saveTableBtn');
                 const tableContainer = document.getElementById('tableContainer');
 
+                // Seção do Gráfico
+                const chartDataInput = document.getElementById('chartDataInput');
+                const generateBarChartBtn = document.getElementById('generateBarChartBtn');
+                const generatePieChartBtn = document.getElementById('generatePieChartBtn');
+                const saveChartDataBtn = document.getElementById('saveChartDataBtn');
+                const chartCanvas = document.getElementById('myChart');
+                let myChartInstance = null;
+
+                // --- Lógica da Tabela ---
                 createTableBtn.addEventListener('click', () => {
                     const rows = parseInt(tableRowsInput.value) || 3;
                     const cols = parseInt(tableColsInput.value) || 3;
-                    
-                    if (rows > 50 || cols > 20) {
-                        showFeedback("Limite de 50 linhas e 20 colunas.");
-                        return;
-                    }
-
-                    tableContainer.innerHTML = ''; // Limpa a tabela anterior
-                    
+                    if (rows > 50 || cols > 20) { showFeedback("Limite de 50 linhas e 20 colunas."); return; }
+                    tableContainer.innerHTML = ''; 
                     const table = document.createElement('table');
                     table.className = "min-w-full divide-y divide-gray-300 border border-gray-300";
-                    
-                    // Cabeçalho
                     const thead = document.createElement('thead');
                     thead.className = "bg-gray-100";
                     const trHead = document.createElement('tr');
                     for (let j = 0; j < cols; j++) {
                         const th = document.createElement('th');
                         th.className = "p-3 border border-gray-300 text-left text-sm font-semibold text-gray-900";
-                        th.setAttribute('contenteditable', 'true'); // Célula editável
-                        th.textContent = `Cabeçalho ${j + 1}`;
+                        th.setAttribute('contenteditable', 'true'); th.textContent = `Cabeçalho ${j + 1}`;
                         trHead.appendChild(th);
                     }
-                    thead.appendChild(trHead);
-                    table.appendChild(thead);
-                    
-                    // Corpo
+                    thead.appendChild(trHead); table.appendChild(thead);
                     const tbody = document.createElement('tbody');
                     tbody.className = "divide-y divide-gray-200 bg-white";
                     for (let i = 0; i < rows; i++) {
@@ -337,16 +338,99 @@
                         for (let j = 0; j < cols; j++) {
                             const td = document.createElement('td');
                             td.className = "p-3 border border-gray-300 text-sm text-gray-700";
-                            td.setAttribute('contenteditable', 'true'); // Célula editável
-                            td.textContent = `Dado ${i + 1}-${j + 1}`;
+                            td.setAttribute('contenteditable', 'true'); td.textContent = `Dado ${i + 1}-${j + 1}`;
                             tr.appendChild(td);
                         }
                         tbody.appendChild(tr);
                     }
-                    table.appendChild(tbody);
-                    
-                    tableContainer.appendChild(table);
+                    table.appendChild(tbody); tableContainer.appendChild(table);
                     showFeedback("Tabela criada! Clique nas células para editar.");
+                });
+
+                // Salvar Tabela no Firebase
+                saveTableBtn.addEventListener('click', async () => {
+                    try {
+                        await setDoc(tableDocRef, { html: tableContainer.innerHTML });
+                        showFeedback('Tabela Salva!');
+                    } catch (e) { console.error("Erro ao salvar tabela: ", e); showFeedback('Erro ao salvar tabela.'); }
+                });
+
+                // Carregar Tabela do Firebase
+                onSnapshot(tableDocRef, (docSnap) => {
+                    if (docSnap.exists() && docSnap.data().html) {
+                        tableContainer.innerHTML = docSnap.data().html;
+                    } else {
+                        tableContainer.innerHTML = '<p class="p-6 text-gray-500">Defina as linhas e colunas e clique em "Gerar Tabela" para começar.</p>';
+                    }
+                });
+
+                // --- Lógica do Gráfico ---
+                function renderChart(type) {
+                    const dataLines = chartDataInput.value.trim().split('\n');
+                    const labels = [];
+                    const data = [];
+                    const backgroundColors = [];
+                    
+                    const defaultColors = [ '#4f46e5', '#34d399', '#f59e0b', '#ec4899', '#0ea5e9', '#84cc16', '#d946ef', '#14b8a6' ];
+                    
+                    dataLines.forEach((line, index) => {
+                        const parts = line.split(',');
+                        if (parts.length === 2) {
+                            labels.push(parts[0].trim());
+                            data.push(parseFloat(parts[1].trim()) || 0);
+                            backgroundColors.push(defaultColors[index % defaultColors.length]);
+                        }
+                    });
+
+                    if (labels.length === 0) {
+                        showFeedback("Dados do gráfico inválidos. Use o formato 'Nome, Valor'.");
+                        return;
+                    }
+
+                    if (myChartInstance) { myChartInstance.destroy(); }
+                    
+                    const ctx = chartCanvas.getContext('2d');
+                    myChartInstance = new Chart(ctx, {
+                        type: type,
+                        data: {
+                            labels: labels,
+                            datasets: [{
+                                label: 'Meu Gráfico',
+                                data: data,
+                                backgroundColor: backgroundColors,
+                                borderColor: '#fff',
+                                borderWidth: 1
+                            }]
+                        },
+                        options: {
+                            responsive: true,
+                            plugins: {
+                                legend: {
+                                    position: (type === 'pie' ? 'top' : 'none'),
+                                }
+                            }
+                        }
+                    });
+                }
+                
+                generateBarChartBtn.addEventListener('click', () => renderChart('bar'));
+                generatePieChartBtn.addEventListener('click', () => renderChart('pie'));
+
+                // Salvar Dados do Gráfico no Firebase
+                saveChartDataBtn.addEventListener('click', async () => {
+                    try {
+                        await setDoc(chartDocRef, { data: chartDataInput.value });
+                        showFeedback('Dados do Gráfico Salvos!');
+                    } catch (e) { console.error("Erro ao salvar dados do gráfico: ", e); showFeedback('Erro ao salvar dados.'); }
+                });
+
+                // Carregar Dados do Gráfico do Firebase
+                onSnapshot(chartDocRef, (docSnap) => {
+                    if (docSnap.exists() && docSnap.data().data) {
+                        chartDataInput.value = docSnap.data().data;
+                        // Opcional: auto-gerar o último gráfico ao carregar
+                        // renderChart('bar'); // Ex: auto-gera gráfico de barras
+                    }
                 });
             }
             
@@ -367,7 +451,6 @@
                         const li = document.createElement('li');
                         li.className = 'flex items-center justify-between bg-gray-50 p-3 rounded-lg border';
                         
-                        // Formata a data. Adiciona 'UTC' para evitar problemas de fuso horário com input type="date"
                         const dataFormatada = new Date(evento.date + 'T00:00:00-03:00').toLocaleDateString('pt-BR', { timeZone: 'America/Sao_Paulo', day: '2-digit', month: '2-digit', year: 'numeric' });
                         
                         li.innerHTML = `
@@ -695,8 +778,7 @@
             initPomodoroApp(); 
             initCalculadoraApp(); 
             initMusicaApp();
-            // initRevisoesApp(); // Removido
-            initTabelaApp(); // NOVO
+            initGraficosApp(); // NOVO
             initCalendarioApp();
         }
     </script>
@@ -803,11 +885,11 @@
                         Calendário
                     </button>
                 </li>
-                <!-- NOVO: Botão Criador de Tabela -->
+                <!-- MUDOU: Botão Tabela -> Gráficos -->
                 <li>
-                    <button data-target="app-tabela" class="nav-link w-full text-left flex items-center gap-3 px-4 py-3 rounded-lg font-medium text-gray-700 hover:bg-gray-200 transition">
-                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-6 h-6"><path stroke-linecap="round" stroke-linejoin="round" d="M9 4.5v15m6-15v15m-10.5-9h15m-15 6h15M3 7.5h18M3 16.5h18" /></svg>
-                        Criador de Tabela
+                    <button data-target="app-graficos" class="nav-link w-full text-left flex items-center gap-3 px-4 py-3 rounded-lg font-medium text-gray-700 hover:bg-gray-200 transition">
+                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-6 h-6"><path stroke-linecap="round" stroke-linejoin="round" d="M3 13.125C3 12.504 3.504 12 4.125 12h2.25c.621 0 1.125.504 1.125 1.125v6.75c0 .621-.504 1.125-1.125 1.125h-2.25A1.125 1.125 0 013 21v-7.875zM12.75 8.625c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125v12.375c0 .621-.504 1.125-1.125 1.125h-2.25A1.125 1.125 0 0112.75 21V8.625zM21 3c0-.621-.504-1.125-1.125-1.125h-2.25A1.125 1.125 0 0016.5 3v18c0 .621.504 1.125 1.125 1.125h2.25A1.125 1.125 0 0021 21V3z" /></svg>
+                        Tabelas & Gráficos
                     </button>
                 </li>
                 <li>
@@ -860,7 +942,7 @@
         <!-- Conteúdo Principal -->
         <main class="flex-1 p-8 overflow-auto">
             
-            <!-- #1: Painel (Boas-vindas) - LAYOUT NOVO -->
+            <!-- #1: Painel (Boas-vindas) -->
             <div id="app-painel" class="app-view">
                 <h2 class="text-4xl font-bold text-gray-800 mb-6">Bem-vindo(a) ao seu StudyHub!</h2>
                 <p class="text-xl text-gray-600 mb-8">Escolha uma ferramenta abaixo para começar.</p>
@@ -890,15 +972,15 @@
                             </div>
                         </div>
                     </button>
-                    <!-- Card Criador de Tabela (NOVO) -->
-                    <button data-target="app-tabela" class="nav-link bg-white p-6 rounded-lg shadow-lg text-left hover:shadow-xl hover:-translate-y-1 transition-all">
+                    <!-- MUDOU: Card Tabela -> Gráficos -->
+                    <button data-target="app-graficos" class="nav-link bg-white p-6 rounded-lg shadow-lg text-left hover:shadow-xl hover:-translate-y-1 transition-all">
                         <div class="flex items-center gap-4">
                             <div class="bg-indigo-100 text-indigo-600 p-3 rounded-lg">
-                                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-6 h-6"><path stroke-linecap="round" stroke-linejoin="round" d="M9 4.5v15m6-15v15m-10.5-9h15m-15 6h15M3 7.5h18M3 16.5h18" /></svg>
+                                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-6 h-6"><path stroke-linecap="round" stroke-linejoin="round" d="M3 13.125C3 12.504 3.504 12 4.125 12h2.25c.621 0 1.125.504 1.125 1.125v6.75c0 .621-.504 1.125-1.125 1.125h-2.25A1.125 1.125 0 013 21v-7.875zM12.75 8.625c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125v12.375c0 .621-.504 1.125-1.125 1.125h-2.25A1.125 1.125 0 0112.75 21V8.625zM21 3c0-.621-.504-1.125-1.125-1.125h-2.25A1.125 1.125 0 0016.5 3v18c0 .621.504 1.125 1.125 1.125h2.25A1.125 1.125 0 0021 21V3z" /></svg>
                             </div>
                             <div>
-                                <h3 class="text-xl font-semibold text-gray-800">Criador de Tabela</h3>
-                                <p class="text-gray-500">Crie tabelas editáveis.</p>
+                                <h3 class="text-xl font-semibold text-gray-800">Tabelas & Gráficos</h3>
+                                <p class="text-gray-500">Crie tabelas e gráficos.</p>
                             </div>
                         </div>
                     </button>
@@ -1027,29 +1109,54 @@
                 </div>
             </div>
             
-            <!-- #6: Criador de Tabela (NOVO) -->
-            <div id="app-tabela" class="app-view hidden max-w-4xl mx-auto">
-                <h2 class="text-3xl font-bold text-gray-800 mb-6">Criador de Tabela</h2>
-                <div class="bg-white p-6 rounded-lg shadow-lg mb-6">
-                    <div class="flex flex-wrap items-center gap-4">
-                        <div class="flex items-center gap-2">
-                            <label for="tableRowsInput" class="font-medium text-gray-700">Linhas:</label>
-                            <input type="number" id="tableRowsInput" class="w-20 p-2 border border-gray-300 rounded-lg" value="3" min="1" max="50">
-                        </div>
-                        <div class="flex items-center gap-2">
-                            <label for="tableColsInput" class="font-medium text-gray-700">Colunas:</label>
-                            <input type="number" id="tableColsInput" class="w-20 p-2 border border-gray-300 rounded-lg" value="3" min="1" max="20">
-                        </div>
-                        <button id="createTableBtn" class="bg-indigo-600 text-white py-2 px-5 rounded-lg font-semibold hover:bg-indigo-700 transition shadow-md flex-grow sm:flex-grow-0">
-                            Gerar Tabela
-                        </button>
-                    </div>
-                    <p class="text-sm text-gray-500 mt-3">Clique em qualquer célula da tabela gerada para editar o conteúdo.</p>
-                </div>
+            <!-- #6: Tabelas & Gráficos (MUDADO) -->
+            <div id="app-graficos" class="app-view hidden max-w-6xl mx-auto">
+                <h2 class="text-3xl font-bold text-gray-800 mb-6">Tabelas & Gráficos</h2>
                 
-                <div id="tableContainer" class="overflow-x-auto bg-white rounded-lg shadow-lg">
-                    <!-- A tabela gerada aparecerá aqui -->
-                    <p class="p-6 text-gray-500">Defina as linhas e colunas e clique em "Gerar Tabela" para começar.</p>
+                <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                    <!-- Coluna da Esquerda: Tabela -->
+                    <div>
+                        <div class="bg-white p-6 rounded-lg shadow-lg mb-6">
+                            <h3 class="text-2xl font-semibold text-gray-900 mb-4">Criador de Tabela</h3>
+                            <div class="flex flex-wrap items-center gap-4">
+                                <div class="flex items-center gap-2">
+                                    <label for="tableRowsInput" class="font-medium text-gray-700">Linhas:</label>
+                                    <input type="number" id="tableRowsInput" class="w-20 p-2 border border-gray-300 rounded-lg" value="3" min="1" max="50">
+                                </div>
+                                <div class="flex items-center gap-2">
+                                    <label for="tableColsInput" class="font-medium text-gray-700">Colunas:</label>
+                                    <input type="number" id="tableColsInput" class="w-20 p-2 border border-gray-300 rounded-lg" value="3" min="1" max="20">
+                                </div>
+                                <button id="createTableBtn" class="bg-indigo-600 text-white py-2 px-5 rounded-lg font-semibold hover:bg-indigo-700 transition shadow-md">Gerar</button>
+                                <button id="saveTableBtn" class="bg-green-600 text-white py-2 px-5 rounded-lg font-semibold hover:bg-green-700 transition shadow-md">Salvar Tabela</button>
+                            </div>
+                            <p class="text-sm text-gray-500 mt-3">Clique em qualquer célula da tabela gerada para editar o conteúdo.</p>
+                        </div>
+                        
+                        <div id="tableContainer" class="overflow-x-auto bg-white rounded-lg shadow-lg">
+                            <!-- A tabela gerada (ou salva) aparecerá aqui -->
+                        </div>
+                    </div>
+                    
+                    <!-- Coluna da Direita: Gráfico -->
+                    <div>
+                        <div class="bg-white p-6 rounded-lg shadow-lg">
+                             <h3 class="text-2xl font-semibold text-gray-900 mb-4">Gerador de Gráfico</h3>
+                             <div>
+                                <label for="chartDataInput" class="block text-sm font-medium text-gray-700 mb-1">Dados (formato: Nome, Valor):</label>
+                                <textarea id="chartDataInput" rows="5" class="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:outline-none" placeholder="Ex: Prova 1, 7.5&#10;Prova 2, 9.0&#10;Trabalho, 10.0"></textarea>
+                             </div>
+                             <div class="flex flex-wrap gap-4 mt-4">
+                                <button id="generateBarChartBtn" class="bg-indigo-600 text-white py-2 px-5 rounded-lg font-semibold hover:bg-indigo-700 transition shadow-md">Gráfico de Barras</button>
+                                <button id="generatePieChartBtn" class="bg-blue-600 text-white py-2 px-5 rounded-lg font-semibold hover:bg-blue-700 transition shadow-md">Gráfico de Pizza</button>
+                                <button id="saveChartDataBtn" class="bg-green-600 text-white py-2 px-5 rounded-lg font-semibold hover:bg-green-700 transition shadow-md">Salvar Dados</button>
+                             </div>
+                             
+                             <div class="mt-6">
+                                <canvas id="myChart" width="400" height="300"></canvas>
+                             </div>
+                        </div>
+                    </div>
                 </div>
             </div>
             
