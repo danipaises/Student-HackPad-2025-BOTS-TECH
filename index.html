@@ -13,10 +13,8 @@
     
     <!-- SDKs do Firebase (Módulos Atualizados para Login) -->
     <script type="module">
-        // Importação da configuração local - REMOVIDO
-        // import { firebaseConfig } from './firebase-config.js';
-
-        // --- CORREÇÃO: Configuração do Firebase movida para cá ---
+        // --- Configuração do Firebase ---
+        // (Movida para cá para funcionar no GitHub/ambientes externos)
         const firebaseConfig = {
           apiKey: "AIzaSyD1j7ynpoB_Qalk8h9xZPmCSnAGCwKhHGk",
           authDomain: "strange-descent-449722-b5.firebaseapp.com",
@@ -26,36 +24,20 @@
           appId: "1:563644382085:web:9a8b42cceec735247ce2ec"
         };
         
-        // --- IMPORTANTE: CORREÇÃO PARA O ERRO "auth/unauthorized-domain" ---
-        // O erro que você está vendo (auth/unauthorized-domain) NÃO é um bug no código.
-        // É uma configuração de segurança do Firebase.
-        //
-        // Para corrigir, você PRECISA autorizar o domínio onde este app está rodando:
-        //
-        // 1. Abra o Console do Firebase: https://console.firebase.google.com/
-        // 2. Vá para o seu projeto (strange-descent-449722-b5).
-        // 3. No menu, clique em "Authentication".
-        // 4. Clique na aba "Sign-in method" (Método de login).
-        // 5. Role para baixo até a seção "Authorized domains" (Domínios autorizados).
-        // 6. Clique em "Add domain" (Adicionar domínio).
-        // 7. Adicione o domínio que aparece na barra de endereços do seu navegador AGORA.
-        //
-        // Depois de adicionar o domínio, salve e o login funcionará.
-        // --- Fim da Correção ---
-
-        // ADICIONADO: Log de aviso para o console
+        // --- Lembrete sobre o Erro "auth/unauthorized-domain" ---
         console.warn(
             'Lembrete: O erro "auth/unauthorized-domain" deve ser corrigido no Console do Firebase. ' +
             'Adicione este domínio à lista de "Domínios autorizados" na aba "Authentication" -> "Sign-in method".'
         );
 
+        // Importações do Firebase
         import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
         import { 
             getAuth, 
-            onAuthStateChanged, // Ouve mudanças no login
-            GoogleAuthProvider, // Provedor do Google
-            signInWithPopup,    // Função de login
-            signOut             // Função de logout
+            onAuthStateChanged, 
+            GoogleAuthProvider, 
+            signInWithPopup,    
+            signOut             
         } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
         import { 
             getFirestore, doc, getDoc, setDoc, onSnapshot, 
@@ -67,18 +49,16 @@
         const db = getFirestore(app);
         const auth = getAuth(app);
         
-        // Elementos da UI (Login vs App)
-        const mainAppDiv = document.getElementById('main-app');
-        const loginDiv = document.getElementById('app-login');
-        const loginBtn = document.getElementById('loginWithGoogleBtn');
-        const logoutBtn = document.getElementById('logoutBtn');
-        const userEmailDisplay = document.getElementById('userEmail');
+        // --- CORREÇÃO (Bug de Recarregar a Página) ---
+        // As variáveis são declaradas aqui, mas os elementos (getElementById)
+        // só são buscados DEPOIS que o DOM estiver carregado.
+        let mainAppDiv, loginDiv, loginBtn, logoutBtn, userEmailDisplay;
 
-        // Função principal de inicialização (agora cuida do login)
+        // Função principal de inicialização
         function initApp() {
             // Inicializa apps locais que não dependem do login
             initPomodoroApp();
-            initCalculadoraApp(); // Nova ferramenta local
+            initCalculadoraApp(); 
 
             // Adiciona listeners aos botões de login/logout
             loginBtn.addEventListener('click', loginWithGoogle);
@@ -92,7 +72,6 @@
                     loginDiv.style.display = 'none'; // Esconde o login
                     userEmailDisplay.textContent = user.email; // Mostra o email
                     
-                    // ID do App (pode ser qualquer string, já que __app_id não existe mais)
                     const appId = 'studyhub-hackpad'; 
                     
                     // Inicializa os componentes que dependem do Firebase
@@ -111,7 +90,6 @@
             const provider = new GoogleAuthProvider();
             try {
                 await signInWithPopup(auth, provider);
-                // O onAuthStateChanged vai cuidar de mostrar o app
             } catch (error) {
                 console.error("Erro ao fazer login com Google:", error);
             }
@@ -121,14 +99,25 @@
         async function logout() {
             try {
                 await signOut(auth);
-                // O onAuthStateChanged vai cuidar de mostrar a tela de login
             } catch (error) {
                 console.error("Erro ao fazer logout:", error);
             }
         }
         
-        // Dispara a inicialização quando o DOM estiver pronto
-        document.addEventListener('DOMContentLoaded', initApp);
+        // --- CORREÇÃO (Bug de Recarregar a Página) ---
+        // O script espera o DOM carregar ANTES de tentar encontrar
+        // os elementos e inicializar o app.
+        document.addEventListener('DOMContentLoaded', () => {
+            // Agora é seguro buscar os elementos
+            mainAppDiv = document.getElementById('main-app');
+            loginDiv = document.getElementById('app-login');
+            loginBtn = document.getElementById('loginWithGoogleBtn');
+            logoutBtn = document.getElementById('logoutBtn');
+            userEmailDisplay = document.getElementById('userEmail');
+            
+            // Inicia a aplicação
+            initApp();
+        });
 
         
         // Esta função wrapper será chamada APÓS o login
@@ -196,12 +185,11 @@
             }
             
             // --- Referências do Firestore ---
-            // Caminhos agora usam o appId 'studyhub-hackpad'
             const todoCollectionRef = collection(db, `artifacts/${appId}/users/${userId}/tarefas`);
             const flashcardsCollectionRef = collection(db, `artifacts/${appId}/users/${userId}/flashcards`);
             const notepadDocRef = doc(db, `artifacts/${appId}/users/${userId}/blocoDeNotas/unicaNota`);
             const linksCollectionRef = collection(db, `artifacts/${appId}/users/${userId}/links`);
-            const metasDocRef = doc(db, `artifacts/${appId}/users/${userId}/metas/diarias`); // NOVO
+            const metasDocRef = doc(db, `artifacts/${appId}/users/${userId}/metas/diarias`); 
 
             // --- Módulo: Lista de Tarefas (Firestore) ---
             function initTodoApp() {
@@ -411,7 +399,7 @@
                 });
             }
 
-            // --- NOVO Módulo: Metas Diárias (Firestore) ---
+            // --- Módulo: Metas Diárias (Firestore) ---
             function initMetasApp() {
                 const metasText = document.getElementById('metasText');
                 const saveMetasBtn = document.getElementById('saveMetasBtn');
@@ -436,7 +424,7 @@
             initFlashcardApp();
             initNotepadApp();
             initLinksApp();
-            initMetasApp(); // NOVO
+            initMetasApp(); 
         }
 
         // --- Módulo: Timer Pomodoro (LOCAL - Não depende do Login) ---
@@ -463,7 +451,6 @@
                     if (secondsRemaining <= 0) {
                         clearInterval(timerInterval);
                         statusDisplay.textContent = 'Pausa! (5 min)';
-                        // A função showFeedback só existe *depois* do login
                         if (window.showGlobalFeedback) { window.showGlobalFeedback('Pomodoro concluído! Hora de uma pausa.', 5000); }
                         resetTimer(false);
                     }
@@ -479,11 +466,11 @@
                 if(showAlert && window.showGlobalFeedback) { window.showGlobalFeedback('Timer resetado.'); }
             }
             startBtn.addEventListener('click', () => { if (isPaused) { startTimer(); } else { pauseTimer(); } });
-            resetBtn.addEventListener('click', resetTimer);
+            resetBtn.addEventListener('click', () => resetTimer(true)); // Passa true explicitamente
             updateDisplay();
         }
 
-        // --- NOVO Módulo: Calculadora de Média (LOCAL - Não depende do Login) ---
+        // --- Módulo: Calculadora de Média (LOCAL - Não depende do Login) ---
         function initCalculadoraApp() {
             const addNotaBtn = document.getElementById('addNotaBtn');
             const notasContainer = document.getElementById('notasContainer');
