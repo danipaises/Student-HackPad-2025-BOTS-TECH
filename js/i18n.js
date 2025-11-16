@@ -20,6 +20,7 @@ const translations = {
         'nav.links': 'Quick Links',
         'nav.calculator': 'Grade Calculator',
         'nav.music': 'Focus Music',
+        'nav.credits': 'Credits', // NOVO
         'nav.logout': 'Logout',
 
         // Dashboard Panel
@@ -43,6 +44,8 @@ const translations = {
         'panel.card.links.desc': 'Useful study links.',
         'panel.card.calculator': 'Grade Calculator',
         'panel.card.calculator.desc': 'Calculate your average.',
+        'panel.card.credits': 'Credits', // NOVO
+        'panel.card.credits.desc': 'See the developers.', // NOVO
 
         // Common
         'common.back': 'Back',
@@ -143,6 +146,10 @@ const translations = {
         'music.classical': '🎻 Classical Music',
         'music.rain': '🌧️ Rain Sounds',
         'music.ocean': '🌊 Ocean Waves',
+        
+        // Credits (NOVO)
+        'credits.title': 'Credits',
+        'credits.subtitle': 'This project was developed by:',
 
         // Feedback Messages
         'feedback.task.required': 'Please enter a task.',
@@ -173,6 +180,7 @@ const translations = {
         'nav.links': 'Links Rápidos',
         'nav.calculator': 'Calculadora Média',
         'nav.music': 'Música Foco',
+        'nav.credits': 'Créditos', // NOVO
         'nav.logout': 'Sair',
 
         // Dashboard Panel
@@ -196,6 +204,8 @@ const translations = {
         'panel.card.links.desc': 'Links úteis de estudo.',
         'panel.card.calculator': 'Calculadora Média',
         'panel.card.calculator.desc': 'Calcule sua média.',
+        'panel.card.credits': 'Créditos', // NOVO
+        'panel.card.credits.desc': 'Veja os desenvolvedores.', // NOVO
 
         // Common
         'common.back': 'Voltar',
@@ -296,6 +306,10 @@ const translations = {
         'music.classical': '🎻 Música Clássica',
         'music.rain': '🌧️ Som de Chuva',
         'music.ocean': '🌊 Ondas do Mar',
+        
+        // Credits (NOVO)
+        'credits.title': 'Créditos',
+        'credits.subtitle': 'Este projeto foi desenvolvido por:',
 
         // Feedback Messages
         'feedback.task.required': 'Por favor, insira uma tarefa.',
@@ -330,7 +344,9 @@ function applyTranslations() {
         if (translation) {
             // Check if element is an input with placeholder
             if (element.tagName === 'INPUT' || element.tagName === 'TEXTAREA') {
-                element.placeholder = translation;
+                if(element.placeholder) {
+                     element.placeholder = translation;
+                }
             } else {
                 element.textContent = translation;
             }

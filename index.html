@@ -30,7 +30,7 @@
     <style>
       body {
         font-family: 'Inter', sans-serif;
-        background-color: #f3f4f6;
+        background-color: #f3f4f6; /* Cor de fundo global mais suave */
       }
 
       /* --- Estilos para Flashcards --- */
@@ -57,7 +57,7 @@
         align-items: center;
         justify-content: center;
         padding: 1.5rem;
-        border-radius: 0.75rem;
+        border-radius: 0.75rem; /* Consistente com rounded-xl */
         box-shadow: 0 10px 15px -3px rgb(0 0 0 / 0.1),
           0 4px 6px -4px rgb(0 0 0 / 0.1);
       }
@@ -76,15 +76,20 @@
         background-color: #4f46e5;
         color: white;
       }
+      /* Hover suave para links não ativos */
+      .nav-link:not(.active):hover {
+         background-color: #eef2ff; /* Indigo-50 */
+         color: #3730a3; /* Indigo-800 */
+      }
 
       /* --- Tarefas Completadas --- */
       .task-item.completed {
-        background-color: #f0fdf4;
-        border-color: #bbf7d0;
+        background-color: #f0fdf4; /* Green-50 */
+        border-color: #bbf7d0; /* Green-200 */
       }
       .task-item.completed span {
         text-decoration: line-through;
-        color: #6b7280;
+        color: #6b7280; /* Gray-500 */
       }
 
       #main-app {
@@ -114,10 +119,11 @@
       #tableContainer td {
         min-width: 80px;
       }
+      /* Foco mais sutil para células editáveis */
       #tableContainer th[contenteditable='true']:focus,
       #tableContainer td[contenteditable='true']:focus {
-        background-color: #fef9c3;
-        outline: 2px solid #4f46e5;
+        background-color: #fef9c3; /* Yellow-100 */
+        outline: 2px solid #4f46e5; /* Indigo-600 */
         box-shadow: none;
       }
 
@@ -196,12 +202,12 @@
         }
       }
 
-      /* Botões touch-friendly */
+      /* Botões touch-friendly (maior área de toque) */
       @media (hover: none) and (pointer: coarse) {
         button,
         .nav-link {
-          min-height: 44px;
-          min-width: 44px;
+          min-height: 44px; /* Padrão de acessibilidade */
+          min-width: 44px; /* Padrão de acessibilidade */
         }
       }
 
@@ -218,6 +224,7 @@
     </style>
   </head>
   <body class="h-screen overflow-hidden">
+    <!-- TELA DE LOGIN -->
     <div
       id="app-login"
       class="flex h-screen w-screen items-center justify-center bg-gray-100 p-4"
@@ -268,13 +275,17 @@
       </div>
     </div>
 
+    <!-- APLICAÇÃO PRINCIPAL -->
     <div id="main-app" class="flex h-screen overflow-x-hidden">
+      <!-- Overlay para menu mobile -->
       <div id="mobileMenuOverlay" class="hidden md:hidden"></div>
 
+      <!-- SIDEBAR (Navegação) -->
       <nav
         id="sidebar"
         class="w-64 bg-white shadow-lg p-6 flex flex-col flex-shrink-0 -translate-x-full md:translate-x-0 md:overflow-y-auto"
       >
+        <!-- Logo e Botão Fechar Mobile -->
         <div class="flex items-center justify-between mb-8">
           <h1
             class="text-2xl md:text-3xl font-bold text-indigo-600"
@@ -302,11 +313,13 @@
             </svg>
           </button>
         </div>
+
+        <!-- Lista de Ferramentas -->
         <ul class="space-y-3">
           <li>
             <button
               data-target="app-painel"
-              class="nav-link active w-full text-left flex items-center gap-3 px-4 py-3 rounded-lg font-medium text-gray-700 hover:bg-gray-200 transition"
+              class="nav-link active w-full text-left flex items-center gap-3 px-4 py-3 rounded-lg font-medium text-gray-700 transition"
             >
               <svg
                 xmlns="http://www.w3.org/2000/svg"
@@ -328,7 +341,7 @@
           <li>
             <button
               data-target="app-tarefas"
-              class="nav-link w-full text-left flex items-center gap-3 px-4 py-3 rounded-lg font-medium text-gray-700 hover:bg-gray-200 transition"
+              class="nav-link w-full text-left flex items-center gap-3 px-4 py-3 rounded-lg font-medium text-gray-700 transition"
             >
               <svg
                 xmlns="http://www.w3.org/2000/svg"
@@ -350,7 +363,7 @@
           <li>
             <button
               data-target="app-metas"
-              class="nav-link w-full text-left flex items-center gap-3 px-4 py-3 rounded-lg font-medium text-gray-700 hover:bg-gray-200 transition"
+              class="nav-link w-full text-left flex items-center gap-3 px-4 py-3 rounded-lg font-medium text-gray-700 transition"
             >
               <svg
                 xmlns="http://www.w3.org/2000/svg"
@@ -372,7 +385,7 @@
           <li>
             <button
               data-target="app-habitos"
-              class="nav-link w-full text-left flex items-center gap-3 px-4 py-3 rounded-lg font-medium text-gray-700 hover:bg-gray-200 transition"
+              class="nav-link w-full text-left flex items-center gap-3 px-4 py-3 rounded-lg font-medium text-gray-700 transition"
             >
                <svg
                 xmlns="http://www.w3.org/2000/svg"
@@ -394,7 +407,7 @@
           <li>
             <button
               data-target="app-calendario"
-              class="nav-link w-full text-left flex items-center gap-3 px-4 py-3 rounded-lg font-medium text-gray-700 hover:bg-gray-200 transition"
+              class="nav-link w-full text-left flex items-center gap-3 px-4 py-3 rounded-lg font-medium text-gray-700 transition"
             >
               <svg
                 xmlns="http://www.w3.org/2000/svg"
@@ -416,7 +429,7 @@
           <li>
             <button
               data-target="app-graficos"
-              class="nav-link w-full text-left flex items-center gap-3 px-4 py-3 rounded-lg font-medium text-gray-700 hover:bg-gray-200 transition"
+              class="nav-link w-full text-left flex items-center gap-3 px-4 py-3 rounded-lg font-medium text-gray-700 transition"
             >
               <svg
                 xmlns="http://www.w3.org/2000/svg"
@@ -438,7 +451,7 @@
           <li>
             <button
               data-target="app-flashcards"
-              class="nav-link w-full text-left flex items-center gap-3 px-4 py-3 rounded-lg font-medium text-gray-700 hover:bg-gray-200 transition"
+              class="nav-link w-full text-left flex items-center gap-3 px-4 py-3 rounded-lg font-medium text-gray-700 transition"
             >
               <svg
                 xmlns="http://www.w3.org/2000/svg"
@@ -460,7 +473,7 @@
           <li>
             <button
               data-target="app-pomodoro"
-              class="nav-link w-full text-left flex items-center gap-3 px-4 py-3 rounded-lg font-medium text-gray-700 hover:bg-gray-200 transition"
+              class="nav-link w-full text-left flex items-center gap-3 px-4 py-3 rounded-lg font-medium text-gray-700 transition"
             >
               <svg
                 xmlns="http://www.w3.org/2000/svg"
@@ -482,7 +495,7 @@
           <li>
             <button
               data-target="app-notas"
-              class="nav-link w-full text-left flex items-center gap-3 px-4 py-3 rounded-lg font-medium text-gray-700 hover:bg-gray-200 transition"
+              class="nav-link w-full text-left flex items-center gap-3 px-4 py-3 rounded-lg font-medium text-gray-700 transition"
             >
               <svg
                 xmlns="http://www.w3.org/2000/svg"
@@ -504,7 +517,7 @@
           <li>
             <button
               data-target="app-links"
-              class="nav-link w-full text-left flex items-center gap-3 px-4 py-3 rounded-lg font-medium text-gray-700 hover:bg-gray-200 transition"
+              class="nav-link w-full text-left flex items-center gap-3 px-4 py-3 rounded-lg font-medium text-gray-700 transition"
             >
               <svg
                 xmlns="http://www.w3.org/2000/svg"
@@ -526,7 +539,7 @@
           <li>
             <button
               data-target="app-calculadora"
-              class="nav-link w-full text-left flex items-center gap-3 px-4 py-3 rounded-lg font-medium text-gray-700 hover:bg-gray-200 transition"
+              class="nav-link w-full text-left flex items-center gap-3 px-4 py-3 rounded-lg font-medium text-gray-700 transition"
             >
               <svg
                 xmlns="http://www.w3.org/2000/svg"
@@ -548,7 +561,7 @@
           <li>
             <button
               data-target="app-musica"
-              class="nav-link w-full text-left flex items-center gap-3 px-4 py-3 rounded-lg font-medium text-gray-700 hover:bg-gray-200 transition"
+              class="nav-link w-full text-left flex items-center gap-3 px-4 py-3 rounded-lg font-medium text-gray-700 transition"
             >
               <svg
                 xmlns="http://www.w3.org/2000/svg"
@@ -567,8 +580,33 @@
               <span data-i18n="nav.music">Focus Music</span>
             </button>
           </li>
+          <!-- NOVO BOTÃO DE CRÉDITOS -->
+          <li>
+            <button
+              data-target="app-creditos"
+              class="nav-link w-full text-left flex items-center gap-3 px-4 py-3 rounded-lg font-medium text-gray-700 transition"
+            >
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke-width="1.5"
+                stroke="currentColor"
+                class="w-6 h-6"
+              >
+                <path
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  d="M17.982 18.725A7.488 7.488 0 0012 15.75a7.488 7.488 0 00-5.982 2.975m11.963 0a9 9 0 10-11.963 0m11.963 0A8.966 8.966 0 0112 21a8.966 8.966 0 01-5.982-2.275M15 9.75a3 3 0 11-6 0 3 3 0 016 0z"
+                />
+              </svg>
+              <span data-i18n="nav.credits">Credits</span>
+            </button>
+          </li>
         </ul>
-        <div class="mt-auto space-y-2">
+
+        <!-- Seção Inferior da Sidebar (Usuário e Logout) -->
+        <div class="mt-auto space-y-2 pt-6 border-t border-gray-200">
           <p
             id="userEmail"
             class="text-xs text-gray-500 mb-2 truncate"
@@ -618,7 +656,9 @@
         </div>
       </nav>
 
+      <!-- CONTEÚDO PRINCIPAL -->
       <main class="flex-1 overflow-auto">
+        <!-- Header Mobile -->
         <div
           class="md:hidden sticky top-0 z-20 bg-white border-b border-gray-200 px-4 py-3 flex items-center justify-between shadow-sm"
         >
@@ -655,25 +695,36 @@
           </button>
         </div>
 
+        <!-- Container para as "Views" -->
         <div class="p-4 md:p-8">
+          <!-- VIEW: PAINEL (DASHBOARD) -->
           <div id="app-painel" class="app-view">
             <h2
-              class="text-4xl font-bold text-gray-800 mb-6"
+              class="text-3xl md:text-4xl font-bold text-gray-800 mb-6"
               data-i18n="panel.welcome"
             >
               Welcome to your StudyHub!
             </h2>
-            <p class="text-xl text-gray-600 mb-8" data-i18n="panel.subtitle">
+            <p
+              class="text-lg md:text-xl text-gray-600 mb-8"
+              data-i18n="panel.subtitle"
+            >
               Choose a tool below to get started.
             </p>
 
-            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            <!-- Grid de Ferramentas -->
+            <div
+              class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6"
+            >
+              <!-- Card Tarefas -->
               <button
                 data-target="app-tarefas"
-                class="nav-link bg-white p-6 rounded-lg shadow-lg text-left hover:shadow-xl hover:-translate-y-1 transition-all"
+                class="nav-link bg-white p-6 rounded-xl shadow-lg text-left hover:shadow-xl hover:-translate-y-1 transition-all"
               >
                 <div class="flex items-center gap-4">
-                  <div class="bg-indigo-100 text-indigo-600 p-3 rounded-lg">
+                  <div
+                    class="bg-indigo-100 text-indigo-600 p-3 rounded-lg flex-shrink-0"
+                  >
                     <svg
                       xmlns="http://www.w3.org/2000/svg"
                       fill="none"
@@ -702,12 +753,16 @@
                   </div>
                 </div>
               </button>
+
+              <!-- Card Calendário -->
               <button
                 data-target="app-calendario"
-                class="nav-link bg-white p-6 rounded-lg shadow-lg text-left hover:shadow-xl hover:-translate-y-1 transition-all"
+                class="nav-link bg-white p-6 rounded-xl shadow-lg text-left hover:shadow-xl hover:-translate-y-1 transition-all"
               >
                 <div class="flex items-center gap-4">
-                  <div class="bg-indigo-100 text-indigo-600 p-3 rounded-lg">
+                  <div
+                    class="bg-indigo-100 text-indigo-600 p-3 rounded-lg flex-shrink-0"
+                  >
                     <svg
                       xmlns="http://www.w3.org/2000/svg"
                       fill="none"
@@ -739,12 +794,16 @@
                   </div>
                 </div>
               </button>
+
+              <!-- Card Tabelas & Gráficos -->
               <button
                 data-target="app-graficos"
-                class="nav-link bg-white p-6 rounded-lg shadow-lg text-left hover:shadow-xl hover:-translate-y-1 transition-all"
+                class="nav-link bg-white p-6 rounded-xl shadow-lg text-left hover:shadow-xl hover:-translate-y-1 transition-all"
               >
                 <div class="flex items-center gap-4">
-                  <div class="bg-indigo-100 text-indigo-600 p-3 rounded-lg">
+                  <div
+                    class="bg-indigo-100 text-indigo-600 p-3 rounded-lg flex-shrink-0"
+                  >
                     <svg
                       xmlns="http://www.w3.org/2000/svg"
                       fill="none"
@@ -773,12 +832,16 @@
                   </div>
                 </div>
               </button>
+
+              <!-- Card Flashcards -->
               <button
                 data-target="app-flashcards"
-                class="nav-link bg-white p-6 rounded-lg shadow-lg text-left hover:shadow-xl hover:-translate-y-1 transition-all"
+                class="nav-link bg-white p-6 rounded-xl shadow-lg text-left hover:shadow-xl hover:-translate-y-1 transition-all"
               >
                 <div class="flex items-center gap-4">
-                  <div class="bg-indigo-100 text-indigo-600 p-3 rounded-lg">
+                  <div
+                    class="bg-indigo-100 text-indigo-600 p-3 rounded-lg flex-shrink-0"
+                  >
                     <svg
                       xmlns="http://www.w3.org/2000/svg"
                       fill="none"
@@ -810,12 +873,16 @@
                   </div>
                 </div>
               </button>
+
+              <!-- Card Pomodoro -->
               <button
                 data-target="app-pomodoro"
-                class="nav-link bg-white p-6 rounded-lg shadow-lg text-left hover:shadow-xl hover:-translate-y-1 transition-all"
+                class="nav-link bg-white p-6 rounded-xl shadow-lg text-left hover:shadow-xl hover:-translate-y-1 transition-all"
               >
                 <div class="flex items-center gap-4">
-                  <div class="bg-indigo-100 text-indigo-600 p-3 rounded-lg">
+                  <div
+                    class="bg-indigo-100 text-indigo-600 p-3 rounded-lg flex-shrink-0"
+                  >
                     <svg
                       xmlns="http://www.w3.org/2000/svg"
                       fill="none"
@@ -847,12 +914,16 @@
                   </div>
                 </div>
               </button>
+
+              <!-- Card Bloco de Notas -->
               <button
                 data-target="app-notas"
-                class="nav-link bg-white p-6 rounded-lg shadow-lg text-left hover:shadow-xl hover:-translate-y-1 transition-all"
+                class="nav-link bg-white p-6 rounded-xl shadow-lg text-left hover:shadow-xl hover:-translate-y-1 transition-all"
               >
                 <div class="flex items-center gap-4">
-                  <div class="bg-indigo-100 text-indigo-600 p-3 rounded-lg">
+                  <div
+                    class="bg-indigo-100 text-indigo-600 p-3 rounded-lg flex-shrink-0"
+                  >
                     <svg
                       xmlns="http://www.w3.org/2000/svg"
                       fill="none"
@@ -881,12 +952,16 @@
                   </div>
                 </div>
               </button>
+
+              <!-- Card Hábitos -->
               <button
                 data-target="app-habitos"
-                class="nav-link bg-white p-6 rounded-lg shadow-lg text-left hover:shadow-xl hover:-translate-y-1 transition-all"
+                class="nav-link bg-white p-6 rounded-xl shadow-lg text-left hover:shadow-xl hover:-translate-y-1 transition-all"
               >
                 <div class="flex items-center gap-4">
-                  <div class="bg-indigo-100 text-indigo-600 p-3 rounded-lg">
+                  <div
+                    class="bg-indigo-100 text-indigo-600 p-3 rounded-lg flex-shrink-0"
+                  >
                     <svg
                       xmlns="http://www.w3.org/2000/svg"
                       fill="none"
@@ -915,12 +990,16 @@
                   </div>
                 </div>
               </button>
+
+              <!-- Card Links Rápidos -->
               <button
                 data-target="app-links"
-                class="nav-link bg-white p-6 rounded-lg shadow-lg text-left hover:shadow-xl hover:-translate-y-1 transition-all"
+                class="nav-link bg-white p-6 rounded-xl shadow-lg text-left hover:shadow-xl hover:-translate-y-1 transition-all"
               >
                 <div class="flex items-center gap-4">
-                  <div class="bg-indigo-100 text-indigo-600 p-3 rounded-lg">
+                  <div
+                    class="bg-indigo-100 text-indigo-600 p-3 rounded-lg flex-shrink-0"
+                  >
                     <svg
                       xmlns="http://www.w3.org/2000/svg"
                       fill="none"
@@ -949,12 +1028,16 @@
                   </div>
                 </div>
               </button>
+
+              <!-- Card Calculadora -->
               <button
                 data-target="app-calculadora"
-                class="nav-link bg-white p-6 rounded-lg shadow-lg text-left hover:shadow-xl hover:-translate-y-1 transition-all"
+                class="nav-link bg-white p-6 rounded-xl shadow-lg text-left hover:shadow-xl hover:-translate-y-1 transition-all"
               >
                 <div class="flex items-center gap-4">
-                  <div class="bg-indigo-100 text-indigo-600 p-3 rounded-lg">
+                  <div
+                    class="bg-indigo-100 text-indigo-600 p-3 rounded-lg flex-shrink-0"
+                  >
                     <svg
                       xmlns="http://www.w3.org/2000/svg"
                       fill="none"
@@ -986,12 +1069,16 @@
                   </div>
                 </div>
               </button>
+
+              <!-- Card Música Foco -->
               <button
                 data-target="app-musica"
-                class="nav-link bg-white p-6 rounded-lg shadow-lg text-left hover:shadow-xl hover:-translate-y-1 transition-all"
+                class="nav-link bg-white p-6 rounded-xl shadow-lg text-left hover:shadow-xl hover:-translate-y-1 transition-all"
               >
                 <div class="flex items-center gap-4">
-                  <div class="bg-indigo-100 text-indigo-600 p-3 rounded-lg">
+                  <div
+                    class="bg-indigo-100 text-indigo-600 p-3 rounded-lg flex-shrink-0"
+                  >
                     <svg
                       xmlns="http://www.w3.org/2000/svg"
                       fill="none"
@@ -1014,18 +1101,59 @@
                     >
                       Focus Music
                     </h3>
-                    <p
-                      class="text-gray-500"
-                      data-i18n="music.subtitle"
-                    >
-                      Click a style to open a YouTube playlist and start focusing.
+                    <p class="text-gray-500" data-i18n="music.subtitle">
+                      Click a style to open a YouTube playlist.
                     </p>
                   </div>
                 </div>
               </button>
+              
+              <!-- NOVO CARD DE CRÉDITOS -->
+              <button
+                data-target="app-creditos"
+                class="nav-link bg-white p-6 rounded-xl shadow-lg text-left hover:shadow-xl hover:-translate-y-1 transition-all"
+              >
+                <div class="flex items-center gap-4">
+                  <div
+                    class="bg-indigo-100 text-indigo-600 p-3 rounded-lg flex-shrink-0"
+                  >
+                    <svg
+                      xmlns="http://www.w3.org/2000/svg"
+                      fill="none"
+                      viewBox="0 0 24 24"
+                      stroke-width="1.5"
+                      stroke="currentColor"
+                      class="w-6 h-6"
+                    >
+                      <path
+                        stroke-linecap="round"
+                        stroke-linejoin="round"
+                        d="M17.982 18.725A7.488 7.488 0 0012 15.75a7.488 7.488 0 00-5.982 2.975m11.963 0a9 9 0 10-11.963 0m11.963 0A8.966 8.966 0 0112 21a8.966 8.966 0 01-5.982-2.275M15 9.75a3 3 0 11-6 0 3 3 0 016 0z"
+                      />
+                    </svg>
+                  </div>
+                  <div>
+                    <h3
+                      class="text-xl font-semibold text-gray-800"
+                      data-i18n="panel.card.credits"
+                    >
+                      Credits
+                    </h3>
+                    <p
+                      class="text-gray-500"
+                      data-i18n="panel.card.credits.desc"
+                    >
+                      See the developers.
+                    </p>
+                  </div>
+                </div>
+              </button>
+
             </div>
+            <!-- Fim do Grid de Ferramentas -->
           </div>
 
+          <!-- VIEW: TAREFAS -->
           <div id="app-tarefas" class="app-view hidden max-w-2xl mx-auto">
             <button
               data-target="app-painel"
@@ -1053,7 +1181,7 @@
             >
               Task List
             </h2>
-            <div class="bg-white p-6 rounded-lg shadow-lg">
+            <div class="bg-white p-6 rounded-xl shadow-lg">
               <div class="flex flex-col md:flex-row gap-4 mb-4">
                 <input
                   type="text"
@@ -1074,6 +1202,7 @@
             </div>
           </div>
 
+          <!-- VIEW: METAS DIÁRIAS -->
           <div id="app-metas" class="app-view hidden max-w-2xl mx-auto">
             <button
               data-target="app-painel"
@@ -1101,7 +1230,7 @@
             >
               Daily Goals
             </h2>
-            <div class="bg-white p-6 rounded-lg shadow-lg">
+            <div class="bg-white p-6 rounded-xl shadow-lg">
               <p class="text-gray-600 mb-4" data-i18n="goals.subtitle">
                 Quais são suas 3 prioridades para hoje?
               </p>
@@ -1121,6 +1250,7 @@
             </div>
           </div>
 
+          <!-- VIEW: HÁBITOS -->
           <div id="app-habitos" class="app-view hidden max-w-2xl mx-auto">
             <button
               data-target="app-painel"
@@ -1148,7 +1278,7 @@
             >
               Habit Tracker
             </h2>
-            <div class="bg-white p-6 rounded-lg shadow-lg">
+            <div class="bg-white p-6 rounded-xl shadow-lg">
               <div class="flex flex-col md:flex-row gap-4 mb-4">
                 <input
                   type="text"
@@ -1177,6 +1307,7 @@
             </div>
           </div>
 
+          <!-- VIEW: CALENDÁRIO -->
           <div id="app-calendario" class="app-view hidden max-w-2xl mx-auto">
             <button
               data-target="app-painel"
@@ -1204,7 +1335,7 @@
             >
               Event Calendar
             </h2>
-            <div class="bg-white p-6 rounded-lg shadow-lg">
+            <div class="bg-white p-6 rounded-xl shadow-lg">
               <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
                 <input
                   type="text"
@@ -1230,6 +1361,7 @@
             </div>
           </div>
 
+          <!-- VIEW: TABELAS & GRÁFICOS -->
           <div id="app-graficos" class="app-view hidden max-w-6xl mx-auto">
             <button
               data-target="app-painel"
@@ -1259,8 +1391,9 @@
             </h2>
 
             <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
+              <!-- Seção da Tabela -->
               <div>
-                <div class="bg-white p-6 rounded-lg shadow-lg mb-6">
+                <div class="bg-white p-6 rounded-xl shadow-lg mb-6">
                   <h3
                     class="text-2xl font-semibold text-gray-900 mb-4"
                     data-i18n="charts.table.title"
@@ -1328,12 +1461,13 @@
 
                 <div
                   id="tableContainer"
-                  class="overflow-x-auto bg-white rounded-lg shadow-lg"
+                  class="overflow-x-auto bg-white rounded-xl shadow-lg"
                 ></div>
               </div>
 
+              <!-- Seção do Gráfico -->
               <div>
-                <div class="bg-white p-6 rounded-lg shadow-lg">
+                <div class="bg-white p-6 rounded-xl shadow-lg">
                    
                   <h3
                     class="text-2xl font-semibold text-gray-900 mb-4"
@@ -1395,6 +1529,7 @@
             </div>
           </div>
 
+          <!-- VIEW: FLASHCARDS -->
           <div id="app-flashcards" class="app-view hidden">
             <button
               data-target="app-painel"
@@ -1425,6 +1560,7 @@
             <main
               class="w-full max-w-5xl mx-auto grid grid-cols-1 md:grid-cols-2 gap-8"
             >
+              <!-- Criação de Card -->
               <section class="bg-white p-6 rounded-xl shadow-lg">
                 <h2
                   class="text-2xl font-semibold text-gray-900 mb-4"
@@ -1480,6 +1616,7 @@
                 </div>
               </section>
 
+              <!-- Estudo de Card -->
               <section class="flex flex-col">
                 <h2
                   class="text-2xl font-semibold text-gray-900 mb-4 text-center md:text-left"
@@ -1575,6 +1712,7 @@
             </main>
           </div>
 
+          <!-- VIEW: POMODORO -->
           <div id="app-pomodoro" class="app-view hidden max-w-md mx-auto">
             <button
               data-target="app-painel"
@@ -1643,6 +1781,7 @@
             </div>
           </div>
 
+          <!-- VIEW: BLOCO DE NOTAS -->
           <div id="app-notas" class="app-view hidden max-w-3xl mx-auto">
             <button
               data-target="app-painel"
@@ -1670,7 +1809,7 @@
             >
               Notepad
             </h2>
-            <div class="bg-white p-6 rounded-lg shadow-lg">
+            <div class="bg-white p-6 rounded-xl shadow-lg">
               <textarea
                 id="notepadText"
                 class="w-full h-96 p-4 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:outline-none"
@@ -1687,6 +1826,7 @@
             </div>
           </div>
 
+          <!-- VIEW: LINKS RÁPIDOS -->
           <div id="app-links" class="app-view hidden max-w-2xl mx-auto">
             <button
               data-target="app-painel"
@@ -1714,7 +1854,7 @@
             >
               Quick Links
             </h2>
-            <div class="bg-white p-6 rounded-lg shadow-lg">
+            <div class="bg-white p-6 rounded-xl shadow-lg">
               <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
                 <input
                   type="text"
@@ -1742,6 +1882,7 @@
             </div>
           </div>
 
+          <!-- VIEW: CALCULADORA -->
           <div id="app-calculadora" class="app-view hidden max-w-md mx-auto">
             <button
               data-target="app-painel"
@@ -1769,7 +1910,7 @@
             >
               Grade Calculator
             </h2>
-            <div class="bg-white p-6 rounded-lg shadow-lg">
+            <div class="bg-white p-6 rounded-xl shadow-lg">
               <div id="notasContainer" class="space-y-3 mb-4">
                 <div class="flex items-center gap-2">
                   <label
@@ -1825,6 +1966,7 @@
             </div>
           </div>
 
+          <!-- VIEW: MÚSICA FOCO -->
           <div id="app-musica" class="app-view hidden max-w-2xl mx-auto">
             <button
               data-target="app-painel"
@@ -1852,7 +1994,7 @@
             >
               Focus Music
             </h2>
-            <div class="bg-white p-6 rounded-lg shadow-lg">
+            <div class="bg-white p-6 rounded-xl shadow-lg">
               <p
                 class="text-gray-600 mb-6 text-center"
                 data-i18n="music.subtitle"
@@ -1900,24 +2042,83 @@
               </div>
             </div>
           </div>
+          
+          <!-- NOVA VIEW: CRÉDITOS -->
+          <div id="app-creditos" class="app-view hidden max-w-2xl mx-auto">
+            <button
+              data-target="app-painel"
+              class="nav-link mb-4 inline-flex items-center gap-2 text-indigo-600 hover:text-indigo-800 font-medium"
+            >
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke-width="2"
+                stroke="currentColor"
+                class="w-5 h-5"
+              >
+                <path
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  d="M10.5 19.5L3 12m0 0l7.5-7.5M3 12h18"
+                />
+              </svg>
+              <span data-i18n="common.back">Back</span>
+            </button>
+            <h2
+              class="text-3xl font-bold text-gray-800 mb-6"
+              data-i18n="credits.title"
+            >
+              Credits
+            </h2>
+            <div class="bg-white p-6 md:p-8 rounded-xl shadow-lg">
+              <p class="text-lg text-gray-700 mb-6" data-i18n="credits.subtitle">
+                This project was developed by:
+              </p>
+              <div class="space-y-4">
+                <div class="flex items-center gap-4">
+                  <img src="https://placehold.co/64x64/eef2ff/4f46e5?text=D" alt="Avatar" class="w-16 h-16 rounded-full border-2 border-indigo-200">
+                  <div>
+                    <h3 class="text-xl font-semibold text-gray-900">Dani Pires</h3>
+                    <p class="text-gray-600">Desenvolvedora Front-end</p>
+                    <a href="#" class="text-indigo-600 hover:underline">GitHub</a>
+                  </div>
+                </div>
+                 <!-- Adicione mais desenvolvedores aqui -->
+                 <div class="flex items-center gap-4">
+                  <img src="https://placehold.co/64x64/e0f2fe/0891b2?text=G" alt="Avatar" class="w-16 h-16 rounded-full border-2 border-cyan-200">
+                  <div>
+                    <h3 class="text-xl font-semibold text-gray-900">Gemini</h3>
+                    <p class="text-gray-600">Assistente de IA</p>
+                    <a href="#" class="text-cyan-600 hover:underline">Website</a>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+          
         </div>
       </main>
     </div>
 
+    <!-- MODAL DE FEEDBACK -->
     <div
       id="feedbackModal"
-      class="hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50"
+      class="hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50 transition-opacity"
     >
-      <div class="bg-white p-8 rounded-lg shadow-xl text-center">
-        <p id="feedbackMessage" class="text-xl font-medium text-gray-800"></p>
+      <div
+        class="bg-white p-6 md:p-8 rounded-lg shadow-xl text-center max-w-sm w-full"
+      >
+        <p id="feedbackMessage" class="text-lg md:text-xl font-medium text-gray-800"></p>
       </div>
     </div>
 
+    <!-- MODAL DE CONFIRMAÇÃO -->
     <div
       id="confirmModal"
-      class="hidden fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center p-4 z-50"
+      class="hidden fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center p-4 z-50 transition-opacity"
     >
-      <div class="bg-white p-8 rounded-lg shadow-xl text-center max-w-sm">
+      <div class="bg-white p-8 rounded-lg shadow-xl text-center max-w-sm w-full">
         <p
           id="confirmMessage"
           class="text-lg font-medium text-gray-900 mb-6"
