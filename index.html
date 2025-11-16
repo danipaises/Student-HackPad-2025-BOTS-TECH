@@ -30,7 +30,7 @@
     <style>
       body {
         font-family: 'Inter', sans-serif;
-        background-color: #f3f4f6; /* Cor de fundo global mais suave */
+        background-color: #f3f4f6; /* Cor de fundo global (Gray-100) */
       }
 
       /* --- Estilos para Flashcards --- */
@@ -57,7 +57,7 @@
         align-items: center;
         justify-content: center;
         padding: 1.5rem;
-        border-radius: 0.75rem; /* Consistente com rounded-xl */
+        border-radius: 0.75rem; /* rounded-xl */
         box-shadow: 0 10px 15px -3px rgb(0 0 0 / 0.1),
           0 4px 6px -4px rgb(0 0 0 / 0.1);
       }
@@ -66,20 +66,20 @@
         color: #1f2937;
       }
       .card-face-back {
-        background-color: #4f46e5;
+        background-color: #4f46e5; /* Indigo-600 */
         color: white;
         transform: rotateY(180deg);
       }
 
-      /* --- Navegação --- */
+      /* --- Navegação (Atualizado para Dark Sidebar) --- */
       .nav-link.active {
-        background-color: #4f46e5;
+        background-color: #4f46e5; /* Indigo-600 */
         color: white;
       }
-      /* Hover suave para links não ativos */
+      /* Hover suave para links não ativos na sidebar escura */
       .nav-link:not(.active):hover {
-         background-color: #eef2ff; /* Indigo-50 */
-         color: #3730a3; /* Indigo-800 */
+         background-color: #374151; /* Gray-700 */
+         color: #ffffff; /* White */
       }
 
       /* --- Tarefas Completadas --- */
@@ -119,7 +119,6 @@
       #tableContainer td {
         min-width: 80px;
       }
-      /* Foco mais sutil para células editáveis */
       #tableContainer th[contenteditable='true']:focus,
       #tableContainer td[contenteditable='true']:focus {
         background-color: #fef9c3; /* Yellow-100 */
@@ -128,8 +127,6 @@
       }
 
       /* --- MOBILE OPTIMIZATION --- */
-
-      /* Sidebar mobile */
       @media (max-width: 768px) {
         #sidebar {
           position: fixed;
@@ -149,12 +146,10 @@
           transform: translateX(-100%);
         }
 
-        /* Garantir espaçamento adequado no fim da lista */
         #sidebar ul {
           padding-bottom: 2rem !important;
         }
 
-        /* FIX: Garantir que o main content possa rolar no mobile */
         #main-app {
           height: 100vh;
           max-height: 100vh;
@@ -168,23 +163,14 @@
           -webkit-overflow-scrolling: touch;
         }
 
-        /* Ajustes de padding para mobile */
         .mobile-padding {
           padding: 1rem !important;
         }
 
-        /* Tamanhos de fonte responsivos */
-        .text-4xl {
-          font-size: 2rem;
-        }
-        .text-3xl {
-          font-size: 1.75rem;
-        }
-        .text-2xl {
-          font-size: 1.5rem;
-        }
+        .text-4xl { font-size: 2rem; }
+        .text-3xl { font-size: 1.75rem; }
+        .text-2xl { font-size: 1.5rem; }
 
-        /* Timer Pomodoro menor no mobile */
         #pomodoroCircle {
           width: 16rem !important;
           height: 16rem !important;
@@ -193,7 +179,6 @@
           font-size: 4rem !important;
         }
 
-        /* Tabelas responsivas */
         #tableContainer th,
         #tableContainer td {
           min-width: 60px;
@@ -202,16 +187,14 @@
         }
       }
 
-      /* Botões touch-friendly (maior área de toque) */
       @media (hover: none) and (pointer: coarse) {
         button,
         .nav-link {
-          min-height: 44px; /* Padrão de acessibilidade */
-          min-width: 44px; /* Padrão de acessibilidade */
+          min-height: 44px;
+          min-width: 44px;
         }
       }
 
-      /* Overlay do menu mobile */
       #mobileMenuOverlay {
         position: fixed;
         top: 0;
@@ -224,10 +207,10 @@
     </style>
   </head>
   <body class="h-screen overflow-hidden">
-    <!-- TELA DE LOGIN -->
+    <!-- TELA DE LOGIN (Layout Atualizado) -->
     <div
       id="app-login"
-      class="flex h-screen w-screen items-center justify-center bg-gray-100 p-4"
+      class="flex h-screen w-screen items-center justify-center p-4 bg-gradient-to-br from-indigo-600 to-purple-700"
     >
       <div
         class="bg-white p-6 md:p-10 rounded-xl shadow-2xl text-center max-w-md w-full"
@@ -253,6 +236,7 @@
             xmlns="http://www.w3.org/2000/svg"
             viewBox="0 0 48 48"
           >
+            <!-- Google icon paths -->
             <path
               fill="#FFC107"
               d="M43.611 20.083H42V20H24v8h11.303c-1.649 4.657-6.08 8-11.303 8c-6.627 0-12-5.373-12-12s5.373-12 12-12c3.059 0 5.842 1.154 7.961 3.039l5.657-5.657C34.046 6.053 29.268 4 24 4C12.955 4 4 12.955 4 24s8.955 20 20 20s20-8.955 20-20c0-1.341-.138-2.65-.389-3.917z"
@@ -280,22 +264,22 @@
       <!-- Overlay para menu mobile -->
       <div id="mobileMenuOverlay" class="hidden md:hidden"></div>
 
-      <!-- SIDEBAR (Navegação) -->
+      <!-- SIDEBAR (Layout Dark Mode) -->
       <nav
         id="sidebar"
-        class="w-64 bg-white shadow-lg p-6 flex flex-col flex-shrink-0 -translate-x-full md:translate-x-0 md:overflow-y-auto"
+        class="w-64 bg-gray-900 p-6 flex flex-col flex-shrink-0 -translate-x-full md:translate-x-0 md:overflow-y-auto"
       >
         <!-- Logo e Botão Fechar Mobile -->
         <div class="flex items-center justify-between mb-8">
           <h1
-            class="text-2xl md:text-3xl font-bold text-indigo-600"
+            class="text-2xl md:text-3xl font-bold text-white"
             data-i18n="app.title"
           >
             StudyHub 🚀
           </h1>
           <button
             id="closeSidebarBtn"
-            class="md:hidden text-gray-600 hover:text-gray-900"
+            class="md:hidden text-gray-400 hover:text-white"
           >
             <svg
               xmlns="http://www.w3.org/2000/svg"
@@ -314,12 +298,12 @@
           </button>
         </div>
 
-        <!-- Lista de Ferramentas -->
+        <!-- Lista de Ferramentas (Links Atualizados) -->
         <ul class="space-y-3">
           <li>
             <button
               data-target="app-painel"
-              class="nav-link active w-full text-left flex items-center gap-3 px-4 py-3 rounded-lg font-medium text-gray-700 transition"
+              class="nav-link active w-full text-left flex items-center gap-3 px-4 py-3 rounded-lg font-medium text-gray-400 transition"
             >
               <svg
                 xmlns="http://www.w3.org/2000/svg"
@@ -341,7 +325,7 @@
           <li>
             <button
               data-target="app-tarefas"
-              class="nav-link w-full text-left flex items-center gap-3 px-4 py-3 rounded-lg font-medium text-gray-700 transition"
+              class="nav-link w-full text-left flex items-center gap-3 px-4 py-3 rounded-lg font-medium text-gray-400 hover:bg-gray-700 hover:text-white transition"
             >
               <svg
                 xmlns="http://www.w3.org/2000/svg"
@@ -363,7 +347,7 @@
           <li>
             <button
               data-target="app-metas"
-              class="nav-link w-full text-left flex items-center gap-3 px-4 py-3 rounded-lg font-medium text-gray-700 transition"
+              class="nav-link w-full text-left flex items-center gap-3 px-4 py-3 rounded-lg font-medium text-gray-400 hover:bg-gray-700 hover:text-white transition"
             >
               <svg
                 xmlns="http://www.w3.org/2000/svg"
@@ -385,7 +369,7 @@
           <li>
             <button
               data-target="app-habitos"
-              class="nav-link w-full text-left flex items-center gap-3 px-4 py-3 rounded-lg font-medium text-gray-700 transition"
+              class="nav-link w-full text-left flex items-center gap-3 px-4 py-3 rounded-lg font-medium text-gray-400 hover:bg-gray-700 hover:text-white transition"
             >
                <svg
                 xmlns="http://www.w3.org/2000/svg"
@@ -407,7 +391,7 @@
           <li>
             <button
               data-target="app-calendario"
-              class="nav-link w-full text-left flex items-center gap-3 px-4 py-3 rounded-lg font-medium text-gray-700 transition"
+              class="nav-link w-full text-left flex items-center gap-3 px-4 py-3 rounded-lg font-medium text-gray-400 hover:bg-gray-700 hover:text-white transition"
             >
               <svg
                 xmlns="http://www.w3.org/2000/svg"
@@ -429,7 +413,7 @@
           <li>
             <button
               data-target="app-graficos"
-              class="nav-link w-full text-left flex items-center gap-3 px-4 py-3 rounded-lg font-medium text-gray-700 transition"
+              class="nav-link w-full text-left flex items-center gap-3 px-4 py-3 rounded-lg font-medium text-gray-400 hover:bg-gray-700 hover:text-white transition"
             >
               <svg
                 xmlns="http://www.w3.org/2000/svg"
@@ -451,7 +435,7 @@
           <li>
             <button
               data-target="app-flashcards"
-              class="nav-link w-full text-left flex items-center gap-3 px-4 py-3 rounded-lg font-medium text-gray-700 transition"
+              class="nav-link w-full text-left flex items-center gap-3 px-4 py-3 rounded-lg font-medium text-gray-400 hover:bg-gray-700 hover:text-white transition"
             >
               <svg
                 xmlns="http://www.w3.org/2000/svg"
@@ -473,7 +457,7 @@
           <li>
             <button
               data-target="app-pomodoro"
-              class="nav-link w-full text-left flex items-center gap-3 px-4 py-3 rounded-lg font-medium text-gray-700 transition"
+              class="nav-link w-full text-left flex items-center gap-3 px-4 py-3 rounded-lg font-medium text-gray-400 hover:bg-gray-700 hover:text-white transition"
             >
               <svg
                 xmlns="http://www.w3.org/2000/svg"
@@ -495,7 +479,7 @@
           <li>
             <button
               data-target="app-notas"
-              class="nav-link w-full text-left flex items-center gap-3 px-4 py-3 rounded-lg font-medium text-gray-700 transition"
+              class="nav-link w-full text-left flex items-center gap-3 px-4 py-3 rounded-lg font-medium text-gray-400 hover:bg-gray-700 hover:text-white transition"
             >
               <svg
                 xmlns="http://www.w3.org/2000/svg"
@@ -517,7 +501,7 @@
           <li>
             <button
               data-target="app-links"
-              class="nav-link w-full text-left flex items-center gap-3 px-4 py-3 rounded-lg font-medium text-gray-700 transition"
+              class="nav-link w-full text-left flex items-center gap-3 px-4 py-3 rounded-lg font-medium text-gray-400 hover:bg-gray-700 hover:text-white transition"
             >
               <svg
                 xmlns="http://www.w3.org/2000/svg"
@@ -539,7 +523,7 @@
           <li>
             <button
               data-target="app-calculadora"
-              class="nav-link w-full text-left flex items-center gap-3 px-4 py-3 rounded-lg font-medium text-gray-700 transition"
+              class="nav-link w-full text-left flex items-center gap-3 px-4 py-3 rounded-lg font-medium text-gray-400 hover:bg-gray-700 hover:text-white transition"
             >
               <svg
                 xmlns="http://www.w3.org/2000/svg"
@@ -561,7 +545,7 @@
           <li>
             <button
               data-target="app-musica"
-              class="nav-link w-full text-left flex items-center gap-3 px-4 py-3 rounded-lg font-medium text-gray-700 transition"
+              class="nav-link w-full text-left flex items-center gap-3 px-4 py-3 rounded-lg font-medium text-gray-400 hover:bg-gray-700 hover:text-white transition"
             >
               <svg
                 xmlns="http://www.w3.org/2000/svg"
@@ -580,11 +564,11 @@
               <span data-i18n="nav.music">Focus Music</span>
             </button>
           </li>
-          <!-- NOVO BOTÃO DE CRÉDITOS -->
+          <!-- Botão de Créditos (Atualizado) -->
           <li>
             <button
               data-target="app-creditos"
-              class="nav-link w-full text-left flex items-center gap-3 px-4 py-3 rounded-lg font-medium text-gray-700 transition"
+              class="nav-link w-full text-left flex items-center gap-3 px-4 py-3 rounded-lg font-medium text-gray-400 hover:bg-gray-700 hover:text-white transition"
             >
               <svg
                 xmlns="http://www.w3.org/2000/svg"
@@ -605,17 +589,17 @@
           </li>
         </ul>
 
-        <!-- Seção Inferior da Sidebar (Usuário e Logout) -->
-        <div class="mt-auto space-y-2 pt-6 border-t border-gray-200">
+        <!-- Seção Inferior da Sidebar (Usuário e Logout - Atualizado) -->
+        <div class="mt-auto space-y-2 pt-6 border-t border-gray-700">
           <p
             id="userEmail"
-            class="text-xs text-gray-500 mb-2 truncate"
+            class="text-xs text-gray-400 mb-2 truncate"
             title="Usuário logado"
             data-i18n="nav.user.title"
           ></p>
           <button
             id="languageToggle"
-            class="w-full text-left flex items-center gap-3 px-4 py-3 rounded-lg font-medium text-indigo-600 hover:bg-indigo-100 transition"
+            class="w-full text-left flex items-center gap-3 px-4 py-3 rounded-lg font-medium text-indigo-400 hover:bg-gray-700 hover:text-indigo-300 transition"
           >
             <svg
               xmlns="http://www.w3.org/2000/svg"
@@ -635,7 +619,7 @@
           </button>
           <button
             id="logoutBtn"
-            class="w-full text-left flex items-center gap-3 px-4 py-3 rounded-lg font-medium text-red-600 hover:bg-red-100 transition"
+            class="w-full text-left flex items-center gap-3 px-4 py-3 rounded-lg font-medium text-red-400 hover:bg-gray-700 hover:text-red-300 transition"
           >
             <svg
               xmlns="http://www.w3.org/2000/svg"
@@ -656,9 +640,9 @@
         </div>
       </nav>
 
-      <!-- CONTEÚDO PRINCIPAL -->
+      <!-- CONTEÚDO PRINCIPAL (Fundo claro mantido para contraste) -->
       <main class="flex-1 overflow-auto">
-        <!-- Header Mobile -->
+        <!-- Header Mobile (Mantido) -->
         <div
           class="md:hidden sticky top-0 z-20 bg-white border-b border-gray-200 px-4 py-3 flex items-center justify-between shadow-sm"
         >
@@ -697,7 +681,7 @@
 
         <!-- Container para as "Views" -->
         <div class="p-4 md:p-8">
-          <!-- VIEW: PAINEL (DASHBOARD) -->
+          <!-- VIEW: PAINEL (DASHBOARD) (Cards com hover atualizado) -->
           <div id="app-painel" class="app-view">
             <h2
               class="text-3xl md:text-4xl font-bold text-gray-800 mb-6"
@@ -712,14 +696,14 @@
               Choose a tool below to get started.
             </p>
 
-            <!-- Grid de Ferramentas -->
+            <!-- Grid de Ferramentas (Animação de hover melhorada) -->
             <div
               class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6"
             >
               <!-- Card Tarefas -->
               <button
                 data-target="app-tarefas"
-                class="nav-link bg-white p-6 rounded-xl shadow-lg text-left hover:shadow-xl hover:-translate-y-1 transition-all"
+                class="nav-link bg-white p-6 rounded-xl shadow-lg text-left hover:shadow-xl hover:scale-[1.02] transform transition-all duration-300"
               >
                 <div class="flex items-center gap-4">
                   <div
@@ -757,7 +741,7 @@
               <!-- Card Calendário -->
               <button
                 data-target="app-calendario"
-                class="nav-link bg-white p-6 rounded-xl shadow-lg text-left hover:shadow-xl hover:-translate-y-1 transition-all"
+                class="nav-link bg-white p-6 rounded-xl shadow-lg text-left hover:shadow-xl hover:scale-[1.02] transform transition-all duration-300"
               >
                 <div class="flex items-center gap-4">
                   <div
@@ -798,7 +782,7 @@
               <!-- Card Tabelas & Gráficos -->
               <button
                 data-target="app-graficos"
-                class="nav-link bg-white p-6 rounded-xl shadow-lg text-left hover:shadow-xl hover:-translate-y-1 transition-all"
+                class="nav-link bg-white p-6 rounded-xl shadow-lg text-left hover:shadow-xl hover:scale-[1.02] transform transition-all duration-300"
               >
                 <div class="flex items-center gap-4">
                   <div
@@ -836,7 +820,7 @@
               <!-- Card Flashcards -->
               <button
                 data-target="app-flashcards"
-                class="nav-link bg-white p-6 rounded-xl shadow-lg text-left hover:shadow-xl hover:-translate-y-1 transition-all"
+                class="nav-link bg-white p-6 rounded-xl shadow-lg text-left hover:shadow-xl hover:scale-[1.02] transform transition-all duration-300"
               >
                 <div class="flex items-center gap-4">
                   <div
@@ -877,7 +861,7 @@
               <!-- Card Pomodoro -->
               <button
                 data-target="app-pomodoro"
-                class="nav-link bg-white p-6 rounded-xl shadow-lg text-left hover:shadow-xl hover:-translate-y-1 transition-all"
+                class="nav-link bg-white p-6 rounded-xl shadow-lg text-left hover:shadow-xl hover:scale-[1.02] transform transition-all duration-300"
               >
                 <div class="flex items-center gap-4">
                   <div
@@ -918,7 +902,7 @@
               <!-- Card Bloco de Notas -->
               <button
                 data-target="app-notas"
-                class="nav-link bg-white p-6 rounded-xl shadow-lg text-left hover:shadow-xl hover:-translate-y-1 transition-all"
+                class="nav-link bg-white p-6 rounded-xl shadow-lg text-left hover:shadow-xl hover:scale-[1.02] transform transition-all duration-300"
               >
                 <div class="flex items-center gap-4">
                   <div
@@ -956,7 +940,7 @@
               <!-- Card Hábitos -->
               <button
                 data-target="app-habitos"
-                class="nav-link bg-white p-6 rounded-xl shadow-lg text-left hover:shadow-xl hover:-translate-y-1 transition-all"
+                class="nav-link bg-white p-6 rounded-xl shadow-lg text-left hover:shadow-xl hover:scale-[1.02] transform transition-all duration-300"
               >
                 <div class="flex items-center gap-4">
                   <div
@@ -994,7 +978,7 @@
               <!-- Card Links Rápidos -->
               <button
                 data-target="app-links"
-                class="nav-link bg-white p-6 rounded-xl shadow-lg text-left hover:shadow-xl hover:-translate-y-1 transition-all"
+                class="nav-link bg-white p-6 rounded-xl shadow-lg text-left hover:shadow-xl hover:scale-[1.02] transform transition-all duration-300"
               >
                 <div class="flex items-center gap-4">
                   <div
@@ -1032,7 +1016,7 @@
               <!-- Card Calculadora -->
               <button
                 data-target="app-calculadora"
-                class="nav-link bg-white p-6 rounded-xl shadow-lg text-left hover:shadow-xl hover:-translate-y-1 transition-all"
+                class="nav-link bg-white p-6 rounded-xl shadow-lg text-left hover:shadow-xl hover:scale-[1.02] transform transition-all duration-300"
               >
                 <div class="flex items-center gap-4">
                   <div
@@ -1073,7 +1057,7 @@
               <!-- Card Música Foco -->
               <button
                 data-target="app-musica"
-                class="nav-link bg-white p-6 rounded-xl shadow-lg text-left hover:shadow-xl hover:-translate-y-1 transition-all"
+                class="nav-link bg-white p-6 rounded-xl shadow-lg text-left hover:shadow-xl hover:scale-[1.02] transform transition-all duration-300"
               >
                 <div class="flex items-center gap-4">
                   <div
@@ -1108,10 +1092,10 @@
                 </div>
               </button>
               
-              <!-- NOVO CARD DE CRÉDITOS -->
+              <!-- Card Créditos -->
               <button
                 data-target="app-creditos"
-                class="nav-link bg-white p-6 rounded-xl shadow-lg text-left hover:shadow-xl hover:-translate-y-1 transition-all"
+                class="nav-link bg-white p-6 rounded-xl shadow-lg text-left hover:shadow-xl hover:scale-[1.02] transform transition-all duration-300"
               >
                 <div class="flex items-center gap-4">
                   <div
@@ -2043,7 +2027,7 @@
             </div>
           </div>
           
-          <!-- NOVA VIEW: CRÉDITOS -->
+          <!-- VIEW: CRÉDITOS (Nome Atualizado) -->
           <div id="app-creditos" class="app-view hidden max-w-2xl mx-auto">
             <button
               data-target="app-painel"
@@ -2076,21 +2060,22 @@
                 This project was developed by:
               </p>
               <div class="space-y-4">
+                <!-- Desenvolvedor Atualizado -->
                 <div class="flex items-center gap-4">
-                  <img src="https://placehold.co/64x64/eef2ff/4f46e5?text=D" alt="Avatar" class="w-16 h-16 rounded-full border-2 border-indigo-200">
+                  <img src="https://placehold.co/64x64/eef2ff/4f46e5?text=DP" alt="Avatar" class="w-16 h-16 rounded-full border-2 border-indigo-200">
                   <div>
-                    <h3 class="text-xl font-semibold text-gray-900">Dani Pires</h3>
+                    <h3 class="text-xl font-semibold text-gray-900">dani paises</h3>
                     <p class="text-gray-600">Desenvolvedora Front-end</p>
-                    <a href="#" class="text-indigo-600 hover:underline">GitHub</a>
+                    <a href="https://github.com/danipaises" target="_blank" rel="noopener noreferrer" class="text-indigo-600 hover:underline">GitHub</a>
                   </div>
                 </div>
-                 <!-- Adicione mais desenvolvedores aqui -->
+                 <!-- Assistente -->
                  <div class="flex items-center gap-4">
                   <img src="https://placehold.co/64x64/e0f2fe/0891b2?text=G" alt="Avatar" class="w-16 h-16 rounded-full border-2 border-cyan-200">
                   <div>
                     <h3 class="text-xl font-semibold text-gray-900">Gemini</h3>
-                    <p class="text-gray-600">Assistente de IA</p>
-                    <a href="#" class="text-cyan-600 hover:underline">Website</a>
+                    <p class="text-gray-600">Assistente de IA & Co-programador</p>
+                    <a href="https://gemini.google.com/" target="_blank" rel="noopener noreferrer" class="text-cyan-600 hover:underline">Website</a>
                   </div>
                 </div>
               </div>
