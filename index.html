@@ -125,6 +125,44 @@
         outline: 2px solid #4f46e5; /* Indigo-600 */
         box-shadow: none;
       }
+      
+      /* --- NOVO: Animação de Fundo de Emojis --- */
+      @keyframes float {
+        0% {
+          transform: translateY(10vh);
+          opacity: 0;
+        }
+        10% {
+          opacity: 0.05; /* Mais sutil */
+        }
+        90% {
+          opacity: 0.05;
+        }
+        100% {
+          transform: translateY(-110vh);
+          opacity: 0;
+        }
+      }
+
+      #emoji-background {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        z-index: -1;
+        overflow: hidden;
+      }
+
+      #emoji-background span {
+        position: absolute;
+        color: #4f46e5;
+        font-size: 3rem; /* Tamanho dos emojis */
+        opacity: 0;
+        animation: float 25s infinite linear;
+      }
+      /* --- Fim da Animação de Emojis --- */
+      
 
       /* --- MOBILE OPTIMIZATION --- */
       @media (max-width: 768px) {
@@ -207,6 +245,19 @@
     </style>
   </head>
   <body class="h-screen overflow-hidden">
+    <!-- NOVO: Fundo de Emoji Animado -->
+    <div id="emoji-background">
+      <span style="left: 10%; animation-delay: 0s; font-size: 2rem;">📚</span>
+      <span style="left: 20%; animation-delay: -5s; font-size: 4rem;">💡</span>
+      <span style="left: 30%; animation-delay: -10s; font-size: 2.5rem;">🎓</span>
+      <span style="left: 40%; animation-delay: -15s; font-size: 3rem;">🔬</span>
+      <span style="left: 50%; animation-delay: -20s; font-size: 4.5rem;">📈</span>
+      <span style="left: 60%; animation-delay: -2s; font-size: 2rem;">💻</span>
+      <span style="left: 70%; animation-delay: -8s; font-size: 3.5rem;">🖋️</span>
+      <span style="left: 80%; animation-delay: -12s; font-size: 2.5rem;">🧪</span>
+      <span style="left: 90%; animation-delay: -18s; font-size: 4rem;">🧠</span>
+    </div>
+    
     <!-- TELA DE LOGIN (Layout Atualizado) -->
     <div
       id="app-login"
@@ -681,20 +732,48 @@
 
         <!-- Container para as "Views" -->
         <div class="p-4 md:p-8">
-          <!-- VIEW: PAINEL (DASHBOARD) (Cards com hover atualizado) -->
+          
+          <!-- VIEW: PAINEL (DASHBOARD) (Layout ATUALIZADO) -->
           <div id="app-painel" class="app-view">
-            <h2
-              class="text-3xl md:text-4xl font-bold text-gray-800 mb-6"
-              data-i18n="panel.welcome"
-            >
-              Welcome to your StudyHub!
-            </h2>
-            <p
-              class="text-lg md:text-xl text-gray-600 mb-8"
-              data-i18n="panel.subtitle"
-            >
-              Choose a tool below to get started.
-            </p>
+            
+            <!-- NOVO: Grid de Widgets do Painel -->
+            <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
+              
+              <!-- Widget: Boas-vindas -->
+              <div class="lg:col-span-1 bg-white p-6 rounded-xl shadow-lg">
+                <h2
+                  class="text-3xl md:text-4xl font-bold text-gray-800 mb-4"
+                  data-i18n="panel.welcome"
+                >
+                  Welcome!
+                </h2>
+                <p
+                  class="text-lg text-gray-600"
+                  data-i18n="panel.subtitle"
+                >
+                  Choose a tool below.
+                </p>
+                <div class="mt-4 pt-4 border-t border-gray-200">
+                  <p class="text-sm text-gray-500 italic" data-i18n="dashboard.welcome.quote">"A jornada de mil milhas começa com um único passo."</p>
+                </div>
+              </div>
+              
+              <!-- Widget: Metas Diárias -->
+              <div class="lg:col-span-1 bg-white p-6 rounded-xl shadow-lg">
+                <h3 class="text-xl font-semibold text-gray-800 mb-3" data-i18n="dashboard.goals.title">Metas Diárias</h3>
+                <pre id="dashboardMetasContent" class="text-sm text-gray-700 whitespace-pre-wrap font-sans h-32 overflow-y-auto" data-i18n="dashboard.goals.empty">Carregando metas...</pre>
+              </div>
+
+              <!-- Widget: Tarefas Pendentes -->
+              <div class="lg:col-span-1 bg-white p-6 rounded-xl shadow-lg">
+                 <h3 class="text-xl font-semibold text-gray-800 mb-3" data-i18n="dashboard.tasks.title">Tarefas Pendentes</h3>
+                 <ul id="dashboardTasksList" class="space-y-2 h-32 overflow-y-auto text-sm">
+                   <li class="text-gray-500" data-i18n="dashboard.tasks.empty">Carregando tarefas...</li>
+                 </ul>
+              </div>
+              
+            </div>
+            <!-- Fim do Grid de Widgets -->
 
             <!-- Grid de Ferramentas (Animação de hover melhorada) -->
             <div

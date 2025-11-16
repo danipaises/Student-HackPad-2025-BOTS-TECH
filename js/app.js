@@ -4,7 +4,7 @@ import { db } from './firebase-config.js';
 import { loginWithGoogle, logout } from './auth.js';
 import { initNavigation, initFeedbackSystem, initConfirmSystem } from './ui-utils.js';
 import { initMobileMenu } from './mobile-menu.js';
-import { initI18n, toggleLanguage } from './i18n.js';
+import { initI18n, toggleLanguage, t } from './i18n.js'; // Importar 't'
 import { initTodoApp } from './modules/todo.js';
 import { initHabitosApp } from './modules/habitos.js';
 import { initFlashcardApp } from './modules/flashcards.js';
@@ -17,6 +17,13 @@ import { initMusicaApp } from './modules/musica.js';
 import { initGraficosApp } from './modules/graficos.js';
 import { initCalendarioApp } from './modules/calendario.js';
 import { onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+// NOVO: Importar funções do Firestore necessárias para o painel
+import {
+    doc,
+    onSnapshot,
+    collection
+} from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+
 
 // Variáveis para elementos do DOM
 let mainAppDiv, loginDiv, loginBtn, logoutBtn, userEmailDisplay;
@@ -88,6 +95,63 @@ function initComponents(db, auth, appId, userId) {
     initMusicaApp();
     initGraficosApp(appId, userId, showFeedback);
     initCalendarioApp(appId, userId, showFeedback);
+
+    // --- NOVO: Lógica dos Widgets do Painel ---
+    const dashboardMetasContent = document.getElementById('dashboardMetasContent');
+    const dashboardTasksList = document.getElementById('dashboardTasksList');
+
+    // Carrega Metas no Painel
+    if (dashboardMetasContent) {
+        const metasDocRef = doc(db, `artifacts/${appId}/users/${userId}/metas/diarias`);
+        onSnapshot(metasDocRef, (docSnap) => {
+            if (docSnap.exists() && docSnap.data().content) {
+                // Preenche o widget de metas no dashboard
+                dashboardMetasContent.innerText = docSnap.data().content;
+            } else {
+                dashboardMetasContent.innerText = t('dashboard.goals.empty');
+            }
+        }, (error) => {
+             console.error("Erro ao carregar metas do painel: ", error);
+             dashboardMetasContent.innerText = "Erro ao carregar metas.";
+        });
+    }
+
+    // Carrega Tarefas no Painel
+    if (dashboardTasksList) {
+        const todoCollectionRef = collection(db, `artifacts/${appId}/users/${userId}/tarefas`);
+        onSnapshot(todoCollectionRef, (snapshot) => {
+            const tasks = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+            const pendingTasks = tasks.filter(task => !task.completed);
+            
+            dashboardTasksList.innerHTML = ''; // Limpa a lista
+            
+            if (pendingTasks.length === 0) {
+                const li = document.createElement('li');
+                li.className = 'text-gray-500';
+                li.textContent = t('dashboard.tasks.empty');
+                dashboardTasksList.appendChild(li);
+            } else {
+                // Limita a 4 tarefas
+                pendingTasks.slice(0, 4).forEach(task => {
+                    const li = document.createElement('li');
+                    li.className = 'py-1 border-b border-gray-200 last:border-b-0 truncate';
+                    li.textContent = task.text;
+                    dashboardTasksList.appendChild(li);
+                });
+                // Adiciona contador "e mais..."
+                if (pendingTasks.length > 4) {
+                    const li = document.createElement('li');
+                    li.className = 'pt-2 text-sm text-indigo-600 font-medium';
+                    li.textContent = `+ ${pendingTasks.length - 4} ${t('dashboard.tasks.more')}`;
+                    dashboardTasksList.appendChild(li);
+                }
+            }
+        }, (error) => {
+            console.error("Erro ao carregar tarefas do painel: ", error);
+            dashboardTasksList.innerHTML = '<li class="text-red-500">Erro ao carregar tarefas.</li>';
+        });
+    }
+    // --- Fim da Lógica do Painel ---
 }
 
 // O script espera o DOM carregar ANTES de tentar encontrar

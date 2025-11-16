@@ -24,8 +24,8 @@ const translations = {
         'nav.logout': 'Logout',
 
         // Dashboard Panel
-        'panel.welcome': 'Welcome to your StudyHub!',
-        'panel.subtitle': 'Choose a tool below to get started.',
+        'panel.welcome': 'Welcome!', // Alterado
+        'panel.subtitle': 'Choose a tool below.', // Alterado
         'panel.card.tasks': 'Tasks',
         'panel.card.tasks.desc': 'Organize your work.',
         'panel.card.calendar': 'Calendar',
@@ -46,6 +46,14 @@ const translations = {
         'panel.card.calculator.desc': 'Calculate your average.',
         'panel.card.credits': 'Credits', // NOVO
         'panel.card.credits.desc': 'See the developers.', // NOVO
+
+        // NOVO: Dashboard Widgets
+        'dashboard.welcome.quote': '"The journey of a thousand miles begins with a single step."',
+        'dashboard.goals.title': 'Daily Goals',
+        'dashboard.goals.empty': "Set your daily goals in the 'Goals' tab.",
+        'dashboard.tasks.title': 'Pending Tasks',
+        'dashboard.tasks.empty': 'No pending tasks. ✨',
+        'dashboard.tasks.more': 'more...',
 
         // Common
         'common.back': 'Back',
@@ -184,8 +192,8 @@ const translations = {
         'nav.logout': 'Sair',
 
         // Dashboard Panel
-        'panel.welcome': 'Bem-vindo(a) ao seu StudyHub!',
-        'panel.subtitle': 'Escolha uma ferramenta abaixo para começar.',
+        'panel.welcome': 'Bem-vindo(a)!', // Alterado
+        'panel.subtitle': 'Escolha uma ferramenta abaixo.', // Alterado
         'panel.card.tasks': 'Tarefas',
         'panel.card.tasks.desc': 'Organize seus trabalhos.',
         'panel.card.calendar': 'Calendário',
@@ -206,6 +214,14 @@ const translations = {
         'panel.card.calculator.desc': 'Calcule sua média.',
         'panel.card.credits': 'Créditos', // NOVO
         'panel.card.credits.desc': 'Veja os desenvolvedores.', // NOVO
+
+        // NOVO: Dashboard Widgets
+        'dashboard.welcome.quote': '"A jornada de mil milhas começa com um único passo."',
+        'dashboard.goals.title': 'Metas Diárias',
+        'dashboard.goals.empty': "Defina suas metas diárias na aba 'Metas'.",
+        'dashboard.tasks.title': 'Tarefas Pendentes',
+        'dashboard.tasks.empty': 'Nenhuma tarefa pendente. ✨',
+        'dashboard.tasks.more': 'mais...',
 
         // Common
         'common.back': 'Voltar',
